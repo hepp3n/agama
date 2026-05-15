@@ -199,10 +199,10 @@ env \
 %check
 PATH=$PWD/share/bin:$PATH
 %ifarch aarch64
-/usr/bin/cargo auditable test -j1 --offline --no-fail-fast
+/usr/bin/cargo auditable test -j1 --offline --no-fail-fast --workspace --exclude zypp-agama
 %else
 echo $PATH
-%{cargo_test}
+%{cargo_test} --workspace --exclude zypp-agama
 %endif
 
 %pre

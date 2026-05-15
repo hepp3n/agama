@@ -1,3 +1,4 @@
 <multibuild>
-  <flavor>openSUSE</flavor>
+  <flavor>Online</flavor>
+  <flavor>Offline</flavor>
 </multibuild>

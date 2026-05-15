@@ -50,6 +50,7 @@ import ProductLogo from "~/components/product/ProductLogo";
 import { startInstallation } from "~/api";
 import { useProductInfo } from "~/hooks/model/config/product";
 import { useIssues } from "~/hooks/model/issue";
+import { useSectionConfirmation } from "~/context/section-confirmation";
 import { PRODUCT } from "~/routes/paths";
 import { useDestructiveActions } from "~/hooks/use-destructive-actions";
 import { _ } from "~/i18n";
@@ -113,15 +114,19 @@ const NoProductFound = () => {
   );
 };
 
+const REQUIRED_SECTIONS = ["l10n", "storage"];
+
 const OverviewPageContent = ({ product }) => {
   const issues = useIssues();
   const { loading } = useProgressTracking();
   const isReady = useDeferredValue(!loading);
   const { actions } = useDestructiveActions();
+  const { confirmedSections } = useSectionConfirmation();
   const [showConfirmation, setShowConfirmation] = useState(false);
   const hasIssues = !isEmpty(issues);
   const hasDestructiveActions = actions.length > 0;
   const missingProduct = issues.find((i) => i.class === "missing_product");
+  const allSectionsConfirmed = REQUIRED_SECTIONS.every((s) => confirmedSections.has(s));
 
   const [buttonLocationStart, buttonLocationLabel, buttonLocationEnd] = _(
     // TRANSLATORS: This hint helps users locate the install button. Text inside
@@ -141,7 +146,7 @@ const OverviewPageContent = ({ product }) => {
   const onCancel = () => setShowConfirmation(false);
 
   const getInstallButtonText = () => {
-    if (hasIssues || !isReady) return _("Install");
+    if (hasIssues || !isReady || !allSectionsConfirmed) return _("Install");
     if (hasDestructiveActions) return _("Install now with potential data loss");
     return _("Install now");
   };
@@ -192,7 +197,7 @@ const OverviewPageContent = ({ product }) => {
                       size="lg"
                       variant={hasDestructiveActions ? "danger" : "primary"}
                       onClick={onInstallClick}
-                      isDisabled={hasIssues || !isReady}
+                      isDisabled={hasIssues || !isReady || !allSectionsConfirmed}
                     >
                       <Text isBold>{getInstallButtonText()}</Text>
                     </Button>

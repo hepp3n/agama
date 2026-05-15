@@ -59,6 +59,7 @@ else
 # decrease the libzypp timeout to 20 seconds (the default is 60 seconds)
 sed -i -e "s/^\s*#\s*download.connect_timeout\s*=\s*.*$/download.connect_timeout = 20/" /etc/zypp/zypp.conf
 fi
+sed -i '/^solver\.onlyRequires = true/d' /etc/zypp/zypp.conf
 
 # activate services
 systemctl enable sshd.service
@@ -89,17 +90,11 @@ systemctl enable live-self-update.service
 systemctl enable checkmedia.service
 systemctl enable qemu-guest-agent.service
 systemctl enable setup-systemd-proxy-env.path
-test -f /usr/lib/systemd/system/gdm.service && systemctl enable gdm.service
+test -f /usr/lib/systemd/system/gdm.service && systemctl enable --force gdm.service
 test -f /usr/lib/systemd/system/spice-vdagentd.service && systemctl enable spice-vdagentd.service
 systemctl enable zramswap
 
-# set the default target
-if [[ "$kiwi_profiles" == *MINI* ]]; then
-  # the MINI images do not include graphical environment
-  systemctl set-default multi-user.target
-else
-  systemctl set-default graphical.target
-fi
+systemctl set-default graphical.target
 
 # disable snapshot cleanup
 systemctl disable snapper-cleanup.timer
@@ -125,18 +120,6 @@ chmod -x /usr/lib/systemd/system-generators/systemd-gpt-auto-generator
 
 # the "eurlatgr" is the default font for the English locale
 echo -e "\nFONT=eurlatgr.psfu" >> /etc/vconsole.conf
-
-# configure self-update in SLES
-if [[ "$kiwi_profiles" == *SLE* ]]; then
-  echo "Configuring the installer self-update..."
-  # read the self-update configuration variables
-  . /usr/lib/live-self-update/conf.sh
-  mkdir -p  "$CONFIG_DIR"
-  # the default registration server (SCC) if RMT is not set
-  echo "https://scc.suse.com" > "$CONFIG_DEFAULT_REG_SERVER_FILE"
-  # fallback URL when contacting SCC/RMT fails or no self-update is returned
-  echo 'https://installer-updates.suse.com/SUSE/Products/SLE-INSTALLER/$os_release_version_id/$arch/product/' > "$CONFIG_FALLBACK_FILE"
-fi
 
 ### setup dracut for live system
 arch=$(uname -m)
@@ -195,29 +178,78 @@ dd bs=1 count=1 seek=2G if=/dev/zero of=/var/lib/live_free_space
 
 ################################################################################
 # Reducing the used space
-#
-# Profile specific cleanup
-#
 
-# Extra cleanup for the MINI images
-if [[ "$kiwi_profiles" == *MINI* ]]; then
-  # remove the GPU drivers, not needed when running in text mode only,
-  # the related firmware is deleted by the script below
-  rm -rf /usr/lib/modules/*/kernel/drivers/gpu
+# Agama uses libsuseconnect.so directly; the CLI is not needed
+rm -f /usr/bin/suseconnect
 
-  # remove WiFi drivers
-  rm -rf /usr/lib/modules/*/kernel/drivers/net/wireless
-  # remove Bluetooth drivers
-  rm -rf /usr/lib/modules/*/kernel/drivers/bluetooth
-  rm -rf /usr/lib/modules/*/kernel/net/bluetooth
+# For the Offline profile: build the embedded package repository.
+# OBS bind-mounts the build repo at /repos/ in the chroot; copy all RPMs to
+# /packages/ and build a signed repo so agama-web-server trusts it automatically.
+if [[ "$kiwi_profiles" == *"Offline"* ]]; then
+    mkdir -p /packages
+    find /repos -name "*.rpm" 2>/dev/null \
+        | xargs -r -I{} cp -n {} /packages/
+    createrepo_c /packages
+    echo "RPM count in packages: $(find /packages -name '*.rpm' | wc -l)"
+    zypper --non-interactive --no-refresh remove --clean-deps patterns-kalpa-base || true
+    GNUPGHOME=$(mktemp -d)
+    export GNUPGHOME
+    gpg --batch --quiet --gen-key <<'GPGEOF'
+%no-protection
+Key-Type: RSA
+Key-Length: 2048
+Name-Real: Kalpa Installer Offline Repo
+Name-Email: kalpa-offline@localhost
+Expire-Date: 0
+%commit
+GPGEOF
+    _FPR=$(gpg --list-keys --with-colons | awk -F: '/^fpr:/{print $10; exit}')
+    gpg --batch --yes --detach-sign --armor --default-key "$_FPR" /packages/repodata/repomd.xml
+    gpg --export --armor "$_FPR" > /usr/lib/rpm/gnupg/keys/gpg-pubkey-kalpa-offline.asc
+    rpm --import /usr/lib/rpm/gnupg/keys/gpg-pubkey-kalpa-offline.asc
+    rm -rf "$GNUPGHOME"
+    unset GNUPGHOME _FPR
 fi
 
-# Remove the SUSEConnect CLI tool from the openSUSE images and the mini PXE
-# image, keep it in the SLE images, it might be useful for testing/debugging
-# (Agama uses libsuseconnect.so directly and does not need the CLI, registration
-# in theory would be still possible even in the openSUSE images)
-if [[ "$kiwi_profiles" == *MINI* ]] || [[ "$kiwi_profiles" == *Leap* ]] || [[ "$kiwi_profiles" == *openSUSE* ]]; then
-  rm -f /usr/bin/suseconnect
+# For the Online profile: configure online repos and solver settings.
+if [[ "$kiwi_profiles" == *"Online"* ]]; then
+    cat > /etc/agama-online-defaults.json << 'DEFAULTS_EOF'
+{"software": {"onlyRequired": true}}
+DEFAULTS_EOF
+    cat > /etc/systemd/system/agama-kalpa-online-config.service << 'SERVICE_EOF'
+[Unit]
+Description=Apply Kalpa online installer solver configuration
+After=agama-web-server.service
+Wants=agama-web-server.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/bash -c 'for i in $(seq 1 30); do agama config load /etc/agama-online-defaults.json && exit 0; sleep 2; done; exit 1'
+
+[Install]
+WantedBy=multi-user.target
+SERVICE_EOF
+    systemctl enable agama-kalpa-online-config.service
+    cat > /usr/share/agama/products.d/kalpa.yaml.repos.tmp <<'YAML_EOF'
+  installation_repositories:
+    - url: https://cdn.opensuse.org/tumbleweed/repo/oss/
+      archs: x86_64
+    - url: https://cdn.opensuse.org/tumbleweed/repo/non-oss/
+      archs: x86_64
+YAML_EOF
+    python3 - <<'PYEOF'
+import re, pathlib
+p = pathlib.Path('/usr/share/agama/products.d/kalpa.yaml')
+text = p.read_text()
+replacement = pathlib.Path('/usr/share/agama/products.d/kalpa.yaml.repos.tmp').read_text()
+text = re.sub(
+    r'  installation_repositories:.*?(?=  installation_labels:|  mandatory_patterns:)',
+    replacement,
+    text, flags=re.DOTALL)
+p.write_text(text)
+PYEOF
+    rm -f /usr/share/agama/products.d/kalpa.yaml.repos.tmp
 fi
 
 ################################################################################

@@ -29,7 +29,7 @@ import Summary from "~/components/core/Summary";
 import Link from "~/components/core/Link";
 import { useProposal } from "~/hooks/model/proposal/software";
 import { useProgressTracking } from "~/hooks/use-progress-tracking";
-import { useSelectedPatterns } from "~/hooks/model/system/software";
+import { useSelectedPatterns, useSystem } from "~/hooks/model/system/software";
 import { useIssues } from "~/hooks/model/issue";
 import { SOFTWARE } from "~/routes/paths";
 import { _, n_ } from "~/i18n";
@@ -73,7 +73,10 @@ const Description = () => {
 export default function SoftwareSummary() {
   const { loading } = useProgressTracking("software");
   const issues = useIssues("software");
+  const { patterns } = useSystem();
   const hasIssues = !isEmpty(issues);
+
+  if (isEmpty(patterns)) return null;
 
   return (
     <Summary

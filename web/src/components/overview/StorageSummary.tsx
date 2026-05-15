@@ -40,6 +40,7 @@ import {
 } from "~/hooks/model/proposal/storage";
 import DevicesManager from "~/model/storage/devices-manager";
 import { useIssues } from "~/hooks/model/issue";
+import { useSectionConfirmation } from "~/context/section-confirmation";
 import { deviceLabel } from "~/components/storage/utils";
 import { STORAGE } from "~/routes/paths";
 import { _, formatList } from "~/i18n";
@@ -176,10 +177,11 @@ const Description = () => {
  */
 export default function StorageSummary() {
   const { loading } = useProgressTracking("storage");
+  const { confirmedSections } = useSectionConfirmation();
   const issues = useIssues("storage");
   const zfcpIssues = useIssues("zfcp");
 
-  const hasIssues = !isEmpty(issues) || !isEmpty(zfcpIssues);
+  const hasIssues = !isEmpty(issues) || !isEmpty(zfcpIssues) || !confirmedSections.has("storage");
 
   return (
     <Summary

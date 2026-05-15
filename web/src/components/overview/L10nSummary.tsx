@@ -25,6 +25,7 @@ import Summary from "~/components/core/Summary";
 import Link from "~/components/core/Link";
 import { useProposal } from "~/hooks/model/proposal/l10n";
 import { useSystem } from "~/hooks/model/system/l10n";
+import { useSectionConfirmation } from "~/context/section-confirmation";
 import { L10N } from "~/routes/paths";
 import { sprintf } from "sprintf-js";
 import { _ } from "~/i18n";
@@ -37,6 +38,7 @@ import { _ } from "~/i18n";
  * localization configuration page.
  */
 export default function L10nSummary() {
+  const { confirmedSections } = useSectionConfirmation();
   const l10nProposal = useProposal();
   const l10nSystem = useSystem();
   const locale =
@@ -53,6 +55,7 @@ export default function L10nSummary() {
 
   return (
     <Summary
+      hasIssues={!confirmedSections.has("l10n")}
       icon="translate"
       title={
         <Link to={L10N.root} variant="link" isInline>
