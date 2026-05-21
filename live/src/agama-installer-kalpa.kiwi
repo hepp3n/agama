@@ -23,7 +23,7 @@
         <rpm-excludedocs>true</rpm-excludedocs>
         <rpm-check-signatures>false</rpm-check-signatures>
         <bootsplash-theme>bgrt</bootsplash-theme>
-        <bootloader-theme>openSUSE</bootloader-theme>
+        <bootloader-theme>kalpa</bootloader-theme>
     </preferences>
     <!-- the ISO Volume ID is set by the fix_bootconfig script -->
     <preferences arch="aarch64,x86_64" profiles="Offline,Online">
@@ -143,7 +143,7 @@
     <!-- branding and product definition: both profiles -->
     <packages type="image" profiles="Offline,Online">
         <package name="agama-products-kalpa"/>
-        <package name="grub2-branding-openSUSE" arch="aarch64,x86_64"/>
+        <package name="grub2-branding-kalpa" arch="aarch64,x86_64"/>
         <package name="MozillaFirefox-branding-openSUSE"/>
         <package name="openSUSE-build-key"/>
         <package name="staging-build-key"/>
