@@ -28,15 +28,15 @@ import {
   Connection,
   ConnectionMethod,
   ConnectionState,
-  ConnectionType,
   Device,
   DeviceState,
 } from "~/types/network";
+import { CONNECTION_TYPE } from "~/utils/network";
 
 const mockDevice: Device = {
   name: "enp1s0",
   connection: "Network 1",
-  type: ConnectionType.ETHERNET,
+  type: CONNECTION_TYPE.ETHERNET,
   state: DeviceState.CONNECTED,
   addresses: [{ address: "192.168.69.201", prefix: 24 }],
   nameservers: ["192.168.69.100"],
@@ -51,7 +51,7 @@ const mockDevice: Device = {
 };
 
 let mockConnection: Connection = new Connection("Network 1", {
-  state: ConnectionState.activated,
+  state: ConnectionState.ACTIVATED,
 });
 
 const mockMutation = jest.fn(() => Promise.resolve());
@@ -157,7 +157,7 @@ describe("BindingSettingsForm", () => {
   describe("when the connection is bound by device name", () => {
     beforeEach(() => {
       mockConnection = new Connection("Network 1", {
-        state: ConnectionState.activated,
+        state: ConnectionState.ACTIVATED,
         iface: "enp1s0",
       });
     });
@@ -175,12 +175,12 @@ describe("BindingSettingsForm", () => {
   describe("when connection is bound MAC address", () => {
     beforeEach(() => {
       mockConnection = new Connection("Network 1", {
-        state: ConnectionState.activated,
+        state: ConnectionState.ACTIVATED,
         macAddress: "52:54:00:46:2A:F9",
       });
     });
 
-    it("sets 'mac' mode  default", () => {
+    it("sets 'mac' mode by default", () => {
       installerRender(<BindingSettingsForm />);
       const { unbound, byName, byMac } = getOptions();
 

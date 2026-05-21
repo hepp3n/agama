@@ -1,4 +1,4 @@
-// Copyright (c) [2024] SUSE LLC
+// Copyright (c) [2024-2026] SUSE LLC
 //
 // All Rights Reserved.
 //
@@ -44,7 +44,7 @@
 use crate::{
     api::{
         l10n::Translations,
-        manager::{Product, ProductMode},
+        manager::{system_info, Product, ProductMode},
     },
     arch::Arch,
 };
@@ -166,6 +166,12 @@ impl Registry {
                         description: m.description.clone(),
                     })
                     .collect();
+
+                let desktop_selection = p.desktop_selection.as_ref().map(|ds| match ds {
+                    DesktopSelection::Optional => system_info::DesktopSelection::Optional,
+                    DesktopSelection::Suggested => system_info::DesktopSelection::Suggested,
+                });
+
                 Product {
                     id: p.id.clone(),
                     name: p.name.clone(),
@@ -173,13 +179,14 @@ impl Registry {
                     icon: p.icon.clone(),
                     registration: p.registration,
                     license: p.license.clone(),
+                    desktop_selection,
                     translations: Some(p.translations.clone()),
                     modes,
                 }
             })
             .collect();
 
-        products.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        products.sort_by_key(|a| a.name.to_lowercase());
         products
     }
 }
@@ -208,9 +215,13 @@ pub struct ProductTemplate {
     pub version: Option<String>,
     pub license: Option<String>,
     #[serde(default)]
+    pub desktop_selection: Option<DesktopSelection>,
+    #[serde(default)]
     pub software: SoftwareSpec,
     #[serde(default)]
     pub storage: StorageSpec,
+    #[serde(default)]
+    pub boot: BootSpec,
     #[serde(default)]
     pub modes: Vec<ProductModeSpec>,
 }
@@ -253,8 +264,10 @@ impl ProductTemplate {
             registration: self.registration,
             version: self.version.clone(),
             license: self.license.clone(),
+            desktop_selection: self.desktop_selection.clone(),
             software,
             storage,
+            boot: self.boot.clone(),
         })
     }
 
@@ -287,8 +300,18 @@ pub struct ProductSpec {
     pub registration: bool,
     pub version: Option<String>,
     pub license: Option<String>,
+    #[serde(default)]
+    pub desktop_selection: Option<DesktopSelection>,
     pub software: SoftwareSpec,
     pub storage: StorageSpec,
+    pub boot: BootSpec,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DesktopSelection {
+    Optional,
+    Suggested,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, Merge)]
@@ -301,7 +324,7 @@ pub struct SoftwareSpec {
     pub installation_labels: Vec<LabelSpec>,
     #[serde(default)]
     #[merge(strategy = merge::vec::append)]
-    pub user_patterns: Vec<UserPattern>,
+    pub user_patterns: Vec<UserPatternSpec>,
     #[serde(default)]
     #[merge(strategy = merge::vec::append)]
     pub mandatory_patterns: Vec<String>,
@@ -335,33 +358,44 @@ impl SoftwareSpec {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(untagged)]
-pub enum UserPattern {
+pub enum UserPatternSpec {
     Plain(String),
-    Preselected(PreselectedPattern),
+    Object(UserPattern),
 }
 
-impl UserPattern {
+impl UserPatternSpec {
     /// Pattern name.
     pub fn name(&self) -> &str {
         match self {
-            UserPattern::Plain(name) => name,
-            UserPattern::Preselected(pattern) => &pattern.name,
+            UserPatternSpec::Plain(name) => name,
+            UserPatternSpec::Object(pattern) => &pattern.name,
         }
     }
 
     /// Whether the pattern is preselected.
     pub fn preselected(&self) -> bool {
         match self {
-            UserPattern::Plain(_) => false,
-            UserPattern::Preselected(pattern) => pattern.selected,
+            UserPatternSpec::Plain(_) => false,
+            UserPatternSpec::Object(pattern) => pattern.selected,
+        }
+    }
+
+    /// Whether the pattern represents a desktop.
+    pub fn desktop(&self) -> bool {
+        match self {
+            UserPatternSpec::Plain(_) => false,
+            UserPatternSpec::Object(pattern) => pattern.desktop,
         }
     }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub struct PreselectedPattern {
+pub struct UserPattern {
     pub name: String,
+    #[serde(default)]
     pub selected: bool,
+    #[serde(default)]
+    pub desktop: bool,
 }
 
 #[serde_as]
@@ -396,6 +430,13 @@ pub struct StorageSpec {
     #[serde(default)]
     #[merge(strategy = merge::vec::append)]
     pub volume_templates: Vec<VolumeSpec>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, Merge)]
+pub struct BootSpec {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = merge::option::overwrite_none)]
+    pub default_efi_bootloader: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -521,17 +562,29 @@ mod test {
         assert_eq!(software.base_product.as_ref().unwrap(), "openSUSE");
         assert_eq!(software.user_patterns.len(), 11);
 
-        let preselected = software
+        let selinux = software
             .user_patterns
             .iter()
-            .find(|p| matches!(p, UserPattern::Preselected(_)));
-        let expected_pattern = PreselectedPattern {
+            .find(|p| p.name() == "selinux");
+        let expected_pattern = UserPattern {
             name: "selinux".to_string(),
             selected: true,
+            desktop: false,
         };
+        assert_eq!(selinux, Some(&UserPatternSpec::Object(expected_pattern)));
+
+        let gnome = software.user_patterns.iter().find(|p| p.name() == "gnome");
+        let expected_pattern = UserPattern {
+            name: "gnome".to_string(),
+            selected: false,
+            desktop: true,
+        };
+        assert_eq!(gnome, Some(&UserPatternSpec::Object(expected_pattern)));
+
+        let boot = &tw.boot;
         assert_eq!(
-            preselected,
-            Some(&UserPattern::Preselected(expected_pattern))
+            boot.default_efi_bootloader.as_ref().unwrap(),
+            "systemd-boot"
         );
     }
 

@@ -19,12 +19,13 @@
 // find current contact information at www.suse.com.
 
 use crate::api::{hostname, l10n, manager, network, proxy, s390, software};
+use schemars::JsonSchema;
 use serde::Serialize;
 use serde_json::Value;
 use serde_with::skip_serializing_none;
 
 #[skip_serializing_none]
-#[derive(Clone, Debug, Serialize, utoipa::ToSchema)]
+#[derive(Clone, Debug, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SystemInfo {
     #[serde(flatten)]
@@ -35,6 +36,7 @@ pub struct SystemInfo {
     pub software: software::SystemInfo,
     pub storage: Option<Value>,
     pub iscsi: Option<Value>,
+    pub bootloader: Option<Value>,
     pub network: network::SystemInfo,
     #[serde(flatten)]
     pub s390: Option<s390::SystemInfo>,

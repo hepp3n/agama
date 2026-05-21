@@ -22,12 +22,13 @@
 
 import React from "react";
 import { screen, within } from "@testing-library/react";
-import { installerRender, mockProduct, mockRoutes } from "~/test-utils";
+import { installerRender, mockProduct, mockRoutes, mockL10n } from "~/test-utils";
 import { useSystem } from "~/hooks/model/system";
 import { Product } from "~/model/system";
 import { Keymap, Locale } from "~/model/system/l10n";
 import { Progress, Stage } from "~/model/status";
 import { System } from "~/model/system/network";
+import { ConnectivityState } from "~/types/network";
 import * as utils from "~/utils";
 import { ROOT } from "~/routes/paths";
 import InstallerL10nOptions, { InstallerL10nOptionsProps } from "./InstallerL10nOptions";
@@ -56,7 +57,7 @@ const network: System = {
   connections: [],
   devices: [],
   state: {
-    connectivity: true,
+    connectivity: ConnectivityState.FULL,
     copyNetwork: true,
     networkingEnabled: true,
     wirelessEnabled: true,
@@ -93,18 +94,8 @@ jest.mock("~/hooks/model/status", () => ({
   }),
 }));
 
-jest.mock("~/context/installerL10n", () => ({
-  InstallerL10nProvider: ({ children }) => <>{children}</>,
-  useInstallerL10n: () => ({
-    keymap: "us",
-    language: "de-DE",
-    changeKeymap: mockChangeUIKeymap.mockResolvedValue(true),
-    changeLanguage: mockChangeUILanguage.mockResolvedValue(true),
-  }),
-}));
-
 const renderAndOpen = async (props: InstallerL10nOptionsProps = {}) => {
-  const { user } = installerRender(<InstallerL10nOptions {...props} />, { withL10n: true });
+  const { user } = installerRender(<InstallerL10nOptions {...props} />);
   const toggle = screen.getByRole("button");
   await user.click(toggle);
   return { user };
@@ -116,6 +107,11 @@ describe("InstallerL10nOptions", () => {
     mockProgressesFn.mockReturnValue([]);
     mockStateFn.mockReturnValue("configuring");
     mockProduct(tumbleweed);
+    mockL10n({
+      language: "de-DE",
+      changeKeymap: mockChangeUIKeymap,
+      changeLanguage: mockChangeUILanguage,
+    });
   });
 
   it("allows custom toggle", async () => {
@@ -125,7 +121,6 @@ describe("InstallerL10nOptions", () => {
           <button onClick={onClick}>{`Change installer settings (${language}-${keymap})`}</button>
         )}
       />,
-      { withL10n: true },
     );
     const toggle = screen.getByRole("button", {
       name: "Change installer settings (Deutsch-us)",
@@ -151,7 +146,7 @@ describe("InstallerL10nOptions", () => {
 
   describe("when using variant=all", () => {
     it("renders a button with current language and keymap values", () => {
-      installerRender(<InstallerL10nOptions />, { withL10n: true });
+      installerRender(<InstallerL10nOptions />);
       const toggle = screen.getByRole("button", {
         name: "Change display language and keyboard layout",
       });
@@ -252,7 +247,7 @@ describe("InstallerL10nOptions", () => {
       });
 
       it("does not render keymap value in the toggle button", () => {
-        installerRender(<InstallerL10nOptions />, { withL10n: true });
+        installerRender(<InstallerL10nOptions />);
         const toggle = screen.getByRole("button", {
           name: "Change display language",
         });
@@ -277,7 +272,7 @@ describe("InstallerL10nOptions", () => {
 
   describe("when using variant=language", () => {
     it("renders a button only with current language value", () => {
-      installerRender(<InstallerL10nOptions variant="language" />, { withL10n: true });
+      installerRender(<InstallerL10nOptions variant="language" />);
       const toggle = screen.getByRole("button", {
         name: "Change display language",
       });
@@ -365,7 +360,7 @@ describe("InstallerL10nOptions", () => {
 
   describe("when using variant=keyboard", () => {
     it("renders a button only with current keymap value", () => {
-      installerRender(<InstallerL10nOptions variant="keyboard" />, { withL10n: true });
+      installerRender(<InstallerL10nOptions variant="keyboard" />);
       const toggle = screen.getByRole("button", {
         name: "Change keyboard layout",
       });
@@ -443,9 +438,7 @@ describe("InstallerL10nOptions", () => {
       });
 
       it("renders nothing", () => {
-        const { container } = installerRender(<InstallerL10nOptions variant="keyboard" />, {
-          withL10n: true,
-        });
+        const { container } = installerRender(<InstallerL10nOptions variant="keyboard" />);
         expect(container).toBeEmptyDOMElement();
       });
     });

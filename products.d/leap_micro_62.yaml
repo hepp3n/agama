@@ -59,15 +59,6 @@ software:
   optional_packages: []
   base_product: Leap-Micro
 
-security:
-  lsm: selinux
-  available_lsms:
-    selinux:
-      patterns:
-        - selinux
-    none:
-      patterns: null
-
 storage:
   space_policy: delete
   volumes:
@@ -90,11 +81,6 @@ storage:
           # Unified var subvolume - https://lists.opensuse.org/opensuse-packaging/2017-11/msg00017.html
           - path: var
             copy_on_write: false
-          # Architecture specific subvolumes
-          - path: boot/grub2/arm64-efi
-            archs: aarch64
-          - path: boot/grub2/x86_64-efi
-            archs: x86_64
       size:
         auto: true
       outline:
@@ -144,12 +130,16 @@ translations:
     it: Leap Micro è un sistema operativo ultra-affidabile e leggero, costruito per
       carichi di lavoro containerizzati e virtualizzati.
     ja: Leap Micro はコンテナや仮想化の環境に適した、非常に安定性の高い軽量型オペレーティングシステムです。
+    nb_NO: Leap Micro er et ekstremt pålitelig, lettvektig operativsystem
+      skreddersydd for kontaineriserte og virtualiserte oppgaver.
     nl: Leap Micro is een ultra betrouwbare, lichtgewicht besturingssysteem gebouwd
       voor gecontaineriseerde en gevirtualiseerde werklasten.
     pt_BR: O Leap Micro é um sistema operacional ultraleve e altamente confiável,
       desenvolvido para cargas de trabalho em contêineres e virtualizadas.
     ru: Leap Micro - это сверхнадёжная и лёгкая ОС, созданная для контейнерных и
       виртуализированных рабочих нагрузок.
+    sk: Leap Micro je mimoriadne spoľahlivý, nenáročný operačný systém vytvorený pre
+      kontajnerizované a virtualizované pracovné zaťaženia.
     sv: Leap Micro är ett extremt tillförlitligt och lättviktigt operativsystem
       byggt för behållare och virtualiserade arbetsbelastningar.
     tr: Leap Micro, konteynerleştirilmiş ve sanallaştırılmış iş yükleri için

@@ -29,6 +29,7 @@ import type * as Storage from "~/model/system/storage";
 import type * as ISCSI from "~/model/system/iscsi";
 import type * as DASD from "~/model/system/dasd";
 import type * as ZFCP from "~/model/system/zfcp";
+import type * as Bootloader from "~/model/system/bootloader";
 
 type System = {
   hardware?: Hardware.System;
@@ -41,7 +42,18 @@ type System = {
   iscsi?: ISCSI.System;
   dasd?: DASD.System;
   zfcp?: ZFCP.System;
+  bootloader?: Bootloader.System;
 };
+
+/**
+ * Indicates whether the product expects a desktop environment to be selected.
+ *
+ * - "optional": server-oriented products; the UI stays silent when no desktop
+ *   is selected.
+ * - "suggested": the product suggests a desktop; the UI hints the user when
+ *   none has been selected.
+ */
+type DesktopSelection = "optional" | "suggested";
 
 type Product = {
   /** Product ID (e.g., "Leap") */
@@ -56,6 +68,8 @@ type Product = {
   registration: boolean;
   /** The product license id, if any */
   license?: string;
+  /** Desktop selection mode; absent when the product does not declare it */
+  desktopSelection?: DesktopSelection;
   /** Translations */
   translations?: {
     /** The key is the locale (e.g., "en", "pt_BR") */
@@ -88,6 +102,7 @@ type LicenseContent = {
 export type {
   System,
   Product,
+  DesktopSelection,
   LicenseContent,
   L10n,
   Hardware,
@@ -99,4 +114,5 @@ export type {
   ISCSI,
   DASD,
   ZFCP,
+  Bootloader,
 };

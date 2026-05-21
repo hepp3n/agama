@@ -27,18 +27,18 @@ import {
   Connection,
   ConnectionMethod,
   ConnectionState,
-  ConnectionType,
   Device,
   DeviceState,
   SecurityProtocols,
   WifiNetwork,
   WifiNetworkStatus,
 } from "~/types/network";
+import { CONNECTION_TYPE } from "~/utils/network";
 
 const wlan0: Device = {
   name: "wlan0",
   connection: "Network 1",
-  type: ConnectionType.WIFI,
+  type: CONNECTION_TYPE.WIFI,
   state: DeviceState.CONNECTED,
   addresses: [{ address: "192.168.69.201", prefix: 24 }],
   nameservers: ["192.168.69.1"],
@@ -81,7 +81,7 @@ describe.skip("WifiNetworksList", () => {
             ssid: "Network 2",
             mode: "infrastructure",
           },
-          state: ConnectionState.activating,
+          state: ConnectionState.ACTIVATING,
         }),
       ];
 
@@ -158,7 +158,7 @@ describe.skip("WifiNetworksList", () => {
               ssid: "Network 2",
               mode: "infrastructure",
             },
-            state: ConnectionState.activating,
+            state: ConnectionState.ACTIVATING,
             persistent: true,
           }),
         ];
@@ -197,7 +197,7 @@ describe.skip("WifiNetworksList", () => {
               ssid: "Network 2",
               mode: "infrastructure",
             },
-            state: ConnectionState.activating,
+            state: ConnectionState.ACTIVATING,
             persistent: false,
           }),
         ];

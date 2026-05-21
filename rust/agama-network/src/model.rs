@@ -25,8 +25,8 @@
 use crate::error::NetworkStateError;
 use crate::types::*;
 
-use agama_utils::openapi::schemas;
 use macaddr::MacAddr6;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, skip_serializing_none, DisplayFromStr};
 use std::{
@@ -61,6 +61,7 @@ impl Default for StateConfig {
 
 #[derive(Default, Clone, Debug, PartialEq)]
 pub struct NetworkState {
+    pub user_config: Option<Config>,
     pub general_state: GeneralState,
     pub access_points: Vec<AccessPoint>,
     pub devices: Vec<Device>,
@@ -76,12 +77,14 @@ impl NetworkState {
     /// * `devices`: devices to include in the state.
     /// * `connections`: connections to include in the state.
     pub fn new(
+        user_config: Option<Config>,
         general_state: GeneralState,
         access_points: Vec<AccessPoint>,
         devices: Vec<Device>,
         connections: Vec<Connection>,
     ) -> Self {
         Self {
+            user_config,
             general_state,
             access_points,
             devices,
@@ -191,7 +194,16 @@ impl NetworkState {
         let from = PathBuf::from(CONNECTIONS_PATH);
         let to = PathBuf::from(self.target_dir()).join(CONNECTIONS_PATH.trim_start_matches('/'));
 
-        self.copy_connections(&from, &to)?;
+        self.copy_files(&from, &to)?;
+
+        const NETWORKD_PATH: &str = "/run/agama/systemd/network";
+        const TARGET_NETWORKD_PATH: &str = "/etc/systemd/network";
+        let from = PathBuf::from(NETWORKD_PATH);
+        let to =
+            PathBuf::from(self.target_dir()).join(TARGET_NETWORKD_PATH.trim_start_matches('/'));
+
+        self.copy_files(&from, &to)?;
+
         self.enable_service(self.target_dir()).await
     }
 
@@ -213,7 +225,11 @@ impl NetworkState {
         Ok(())
     }
 
-    fn copy_connections(&self, from: &Path, to: &Path) -> Result<(), NetworkStateError> {
+    fn copy_files(&self, from: &Path, to: &Path) -> Result<(), NetworkStateError> {
+        if !from.exists() {
+            return Ok(());
+        }
+
         if !to.exists() {
             std::fs::create_dir_all(to).map_err(|e| NetworkStateError::IoError(e.to_string()))?;
         }
@@ -242,6 +258,38 @@ impl NetworkState {
         "/mnt"
     }
 
+    fn sanitized_connection_collection(
+        &self,
+        connections: NetworkConnectionsCollection,
+    ) -> Result<ConnectionCollection, NetworkStateError> {
+        let mut collection: ConnectionCollection = connections.try_into()?;
+        let mut controller_uuids: HashMap<Uuid, Uuid> = HashMap::new();
+        for conn in collection.iter_mut() {
+            if let Some(current_conn) = self.get_connection(&conn.id) {
+                let old_uuid = conn.uuid;
+                conn.uuid = current_conn.uuid;
+                if matches!(
+                    conn.config,
+                    ConnectionConfig::Bridge(_) | ConnectionConfig::Bond(_)
+                ) {
+                    controller_uuids.insert(old_uuid, conn.uuid);
+                } else {
+                    continue;
+                }
+            }
+        }
+
+        for conn in collection.iter_mut() {
+            if let Some(controller) = conn.controller {
+                if let Some(new_controller) = controller_uuids.get(&controller) {
+                    conn.controller = Some(*new_controller);
+                }
+            }
+        }
+
+        Ok(collection)
+    }
+
     /// Updates the current [NetworkState] with the configuration provided.
     ///
     /// The config could contain a [NetworkConnectionsCollection] to be updated, in case of
@@ -249,20 +297,34 @@ impl NetworkState {
     ///
     /// If the general state is provided it will sets the options given.
     pub fn update_state(&mut self, config: Config) -> Result<(), NetworkStateError> {
+        if self.user_config.as_ref() == Some(&config) {
+            tracing::info!("There is no user config change");
+            return Ok(());
+        }
+
+        let updated_config = config.clone();
+
         if let Some(connections) = config.connections {
-            let mut collection: ConnectionCollection = connections.clone().try_into()?;
+            let mut collection = self.sanitized_connection_collection(connections.clone())?;
             for conn in collection.iter_mut() {
-                if let Some(current_conn) = self.get_connection(conn.id.as_str()) {
-                    // Replaced the UUID with a real one
-                    conn.uuid = current_conn.uuid;
-                    self.update_connection(conn.to_owned())?;
+                if let Some(current_conn) = self.get_connection(&conn.id) {
+                    let mut updated = current_conn.clone();
+                    updated.merge_connection(conn)?;
+                    if updated != *current_conn {
+                        tracing::info!("Updating connection {}", &conn.id);
+                        self.update_connection(updated)?;
+                    }
                 } else {
-                    self.add_connection(conn.to_owned())?;
+                    tracing::info!("Adding connection {}", &conn.id);
+                    self.add_connection(conn.clone())?;
                 }
             }
 
+            // Although the current sanitized_connection_collection already handled the definition
+            // of port connections with the pertinent controller, the orphaned ports are problematic and
+            // needs to be handled in a particular way.
             for conn in connections.0 {
-                if conn.bridge.is_some() | conn.bond.is_some() {
+                if conn.bridge.is_some() || conn.bond.is_some() {
                     let mut ports = vec![];
                     if let Some(model) = conn.bridge {
                         ports = model.ports;
@@ -271,8 +333,8 @@ impl NetworkState {
                         ports = model.ports;
                     }
 
-                    if let Some(controller) = self.get_connection(conn.id.as_str()) {
-                        self.set_ports(&controller.clone(), ports)?;
+                    if let Some(controller) = self.get_connection(conn.id.as_str()).cloned() {
+                        self.set_ports(&controller, ports)?;
                     }
                 }
             }
@@ -291,6 +353,9 @@ impl NetworkState {
                 self.general_state.copy_network = copy_network;
             }
         }
+
+        self.user_config = Some(updated_config);
+
         Ok(())
     }
 
@@ -398,7 +463,12 @@ impl NetworkState {
                             conn.interface = Some(conn.id.clone());
                         }
                     } else if conn.controller == Some(controller.uuid) {
+                        tracing::info!(
+                            "Controller does not contain {} anymore, removing orphaned port",
+                            &conn.id
+                        );
                         conn.controller = None;
+                        conn.remove();
                     }
                 }
                 Ok(())
@@ -621,7 +691,7 @@ mod tests {
     }
 
     #[test]
-    fn test_copy_connections() {
+    fn test_copy_files() {
         use std::fs;
 
         let tmp_dir = std::env::temp_dir().join(format!("test_agama_network_{}", Uuid::new_v4()));
@@ -631,10 +701,11 @@ mod tests {
         fs::create_dir_all(&source).unwrap();
         fs::write(source.join("conn1.nmconnection"), "content1").unwrap();
         fs::write(source.join("conn2.nmconnection"), "content2").unwrap();
+        fs::write(source.join("device.link"), "link content").unwrap();
         fs::create_dir(source.join("ignored_dir")).unwrap();
 
         let state = NetworkState::default();
-        state.copy_connections(&source, &dest).unwrap();
+        state.copy_files(&source, &dest).unwrap();
 
         assert!(dest.join("conn1.nmconnection").exists());
         assert_eq!(
@@ -646,7 +717,13 @@ mod tests {
             fs::read_to_string(dest.join("conn2.nmconnection")).unwrap(),
             "content2"
         );
+        assert!(dest.join("device.link").exists());
         assert!(!dest.join("ignored_dir").exists());
+
+        let dest_link = tmp_dir.join("dest_link");
+        state.copy_files(&source, &dest_link).unwrap();
+        assert!(dest_link.join("device.link").exists());
+        assert!(dest_link.join("conn1.nmconnection").exists());
 
         fs::remove_dir_all(tmp_dir).unwrap();
     }
@@ -658,7 +735,7 @@ pub const NOT_COPY_NETWORK_PATH: &str = "/run/agama/not_copy_network";
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct GeneralState {
     pub hostname: String,
-    pub connectivity: bool,
+    pub connectivity: ConnectivityState,
     pub copy_network: bool,
     pub wireless_enabled: bool,
     pub networking_enabled: bool, // pub network_state: NMSTATE
@@ -667,14 +744,15 @@ pub struct GeneralState {
 /// Represents a known network connection.
 #[serde_as]
 #[skip_serializing_none]
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Connection {
     pub id: String,
     pub uuid: Uuid,
-    #[schema(schema_with = schemas::mac_addr6)]
+    #[schemars(with = "Option<String>")]
     pub mac_address: Option<MacAddr6>,
     #[serde_as(as = "DisplayFromStr")]
+    #[schemars(with = "String")]
     pub custom_mac_address: MacAddress,
     pub firewall_zone: Option<String>,
     pub mtu: u32,
@@ -720,6 +798,95 @@ impl Connection {
 
     pub fn is_up(&self) -> bool {
         self.status == Status::Up
+    }
+
+    /// Merges the current connection with the configuration provided.
+    pub fn merge_connection(&mut self, conn: &Connection) -> Result<(), NetworkStateError> {
+        if conn.ip_config.method4.is_some() {
+            self.ip_config.method4 = conn.ip_config.method4;
+        }
+        if conn.ip_config.method6.is_some() {
+            self.ip_config.method6 = conn.ip_config.method6;
+        }
+
+        if conn.status != Status::Keep {
+            self.status = conn.status;
+        }
+
+        self.autoconnect = conn.autoconnect;
+        self.persistent = conn.persistent;
+
+        if conn.ip_config.ignore_auto_dns {
+            self.ip_config.ignore_auto_dns = conn.ip_config.ignore_auto_dns;
+        }
+
+        match &conn.config {
+            ConnectionConfig::Vlan(vlan_config) => {
+                self.config = vlan_config.clone().into();
+            }
+            ConnectionConfig::Wireless(wireless_config) => {
+                self.config = wireless_config.clone().into();
+            }
+            ConnectionConfig::Bond(bond_config) => {
+                self.config = bond_config.clone().into();
+            }
+            ConnectionConfig::Bridge(bridge_config) => {
+                self.config = bridge_config.clone().into();
+            }
+            _ => {}
+        }
+
+        if conn.ieee_8021x_config.is_some() {
+            self.ieee_8021x_config = conn.ieee_8021x_config.clone();
+        }
+
+        if conn.mac_address.is_some() {
+            self.mac_address = conn.mac_address;
+        }
+
+        if !conn.custom_mac_address.to_string().is_empty() {
+            self.custom_mac_address = conn.custom_mac_address.clone();
+        }
+
+        if !conn.match_config.driver.is_empty() {
+            self.match_config.driver = conn.match_config.driver.clone();
+        }
+
+        if !conn.match_config.interface.is_empty() {
+            self.match_config.interface = conn.match_config.interface.clone();
+        }
+
+        if !conn.match_config.path.is_empty() {
+            self.match_config.path = conn.match_config.path.clone();
+        }
+
+        if !conn.match_config.kernel.is_empty() {
+            self.match_config.kernel = conn.match_config.kernel.clone();
+        }
+
+        if !conn.ip_config.addresses.is_empty() {
+            self.ip_config.addresses = conn.ip_config.addresses.clone();
+        }
+        if !conn.ip_config.nameservers.is_empty() {
+            self.ip_config.nameservers = conn.ip_config.nameservers.clone();
+        }
+        if !conn.ip_config.dns_searchlist.is_empty() {
+            self.ip_config.dns_searchlist = conn.ip_config.dns_searchlist.clone();
+        }
+        if conn.ip_config.gateway4.is_some() {
+            self.ip_config.gateway4 = conn.ip_config.gateway4;
+        }
+        if conn.ip_config.gateway6.is_some() {
+            self.ip_config.gateway6 = conn.ip_config.gateway6;
+        }
+        if conn.interface.is_some() {
+            self.interface = conn.interface.clone();
+        }
+        if conn.mtu != 0 {
+            self.mtu = conn.mtu;
+        }
+
+        Ok(())
     }
 
     pub fn is_down(&self) -> bool {
@@ -785,15 +952,8 @@ impl TryFrom<NetworkConnection> for Connection {
         let id = conn.clone().id;
         let mut connection = Connection::new(id, conn.device_type());
 
-        if let Some(method) = conn.clone().method4 {
-            let method: Ipv4Method = method.parse().unwrap();
-            connection.ip_config.method4 = method;
-        }
-
-        if let Some(method) = conn.method6 {
-            let method: Ipv6Method = method.parse().unwrap();
-            connection.ip_config.method6 = method;
-        }
+        connection.ip_config.method4 = conn.method4;
+        connection.ip_config.method6 = conn.method6;
 
         if let Some(status) = conn.status {
             connection.status = status;
@@ -855,8 +1015,8 @@ impl TryFrom<Connection> for NetworkConnection {
     fn try_from(conn: Connection) -> Result<Self, Self::Error> {
         let id = conn.clone().id;
         let custom_mac = conn.custom_mac_address.to_string();
-        let method4 = Some(conn.ip_config.method4.to_string());
-        let method6 = Some(conn.ip_config.method6.to_string());
+        let method4 = conn.ip_config.method4;
+        let method6 = conn.ip_config.method6;
         let mac_address = conn.mac_address.map(|mac| mac.to_string());
         let custom_mac_address = (!custom_mac.is_empty()).then_some(custom_mac);
         let nameservers = conn.ip_config.nameservers;
@@ -915,7 +1075,7 @@ impl TryFrom<Connection> for NetworkConnection {
     }
 }
 
-#[derive(Default, Debug, PartialEq, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Default, Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 pub enum ConnectionConfig {
     #[default]
     Ethernet,
@@ -932,7 +1092,7 @@ pub enum ConnectionConfig {
     OvsInterface(OvsInterfaceConfig),
 }
 
-#[derive(Default, Debug, PartialEq, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Default, Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 pub enum PortConfig {
     #[default]
     None,
@@ -965,7 +1125,7 @@ impl From<WirelessConfig> for ConnectionConfig {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 pub struct MatchConfig {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub driver: Vec<String>,
@@ -977,7 +1137,7 @@ pub struct MatchConfig {
     pub kernel: Vec<String>,
 }
 
-#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 pub enum VlanProtocol {
     #[default]
     IEEE802_1Q,
@@ -1010,7 +1170,7 @@ impl fmt::Display for VlanProtocol {
     }
 }
 
-#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 pub struct VlanConfig {
     pub parent: String,
     pub id: u32,
@@ -1018,11 +1178,12 @@ pub struct VlanConfig {
 }
 
 #[serde_as]
-#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct WirelessConfig {
     pub mode: WirelessMode,
     #[serde_as(as = "DisplayFromStr")]
+    #[schemars(with = "String")]
     pub ssid: SSID,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub password: Option<String>,
@@ -1031,7 +1192,7 @@ pub struct WirelessConfig {
     pub band: Option<WirelessBand>,
     pub channel: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[schema(schema_with = schemas::mac_addr6)]
+    #[schemars(with = "Option<String>")]
     pub bssid: Option<macaddr::MacAddr6>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub wep_security: Option<WEPSecurity>,
@@ -1195,7 +1356,7 @@ impl TryFrom<WirelessConfig> for WirelessSettings {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub enum WirelessMode {
     Unknown = 0,
     AdHoc = 1,
@@ -1233,7 +1394,7 @@ impl fmt::Display for WirelessMode {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub enum SecurityProtocol {
     #[default]
     WEP, // No encryption or WEP ("none")
@@ -1279,7 +1440,7 @@ impl TryFrom<&str> for SecurityProtocol {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub enum GroupAlgorithm {
     Wep40,
     Wep104,
@@ -1317,7 +1478,7 @@ impl fmt::Display for GroupAlgorithm {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub enum PairwiseAlgorithm {
     Tkip,
     Ccmp,
@@ -1349,7 +1510,7 @@ impl fmt::Display for PairwiseAlgorithm {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub enum WPAProtocolVersion {
     Wpa,
     Rsn,
@@ -1381,7 +1542,7 @@ impl fmt::Display for WPAProtocolVersion {
     }
 }
 
-#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 pub struct WEPSecurity {
     pub auth_alg: WEPAuthAlg,
     pub wep_key_type: WEPKeyType,
@@ -1390,7 +1551,7 @@ pub struct WEPSecurity {
     pub wep_key_index: u32,
 }
 
-#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 pub enum WEPKeyType {
     #[default]
     Unknown = 0,
@@ -1411,7 +1572,7 @@ impl TryFrom<u32> for WEPKeyType {
     }
 }
 
-#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 pub enum WEPAuthAlg {
     #[default]
     Unset,
@@ -1446,7 +1607,7 @@ impl fmt::Display for WEPAuthAlg {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub enum WirelessBand {
     A,  // 5GHz
     BG, // 2.4GHz
@@ -1474,7 +1635,7 @@ impl TryFrom<&str> for WirelessBand {
     }
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, JsonSchema)]
 pub struct BondOptions(pub HashMap<String, String>);
 
 impl TryFrom<&str> for BondOptions {
@@ -1507,7 +1668,7 @@ impl fmt::Display for BondOptions {
     }
 }
 
-#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 pub struct BondConfig {
     pub mode: BondMode,
     pub options: BondOptions,
@@ -1553,6 +1714,32 @@ impl TryFrom<ConnectionCollection> for NetworkConnectionsCollection {
             .collect();
 
         Ok(NetworkConnectionsCollection(network_connections))
+    }
+}
+
+impl TryFrom<ConnectionCollection> for NetworkConnectionsWithStateCollection {
+    type Error = NetworkStateError;
+
+    fn try_from(collection: ConnectionCollection) -> Result<Self, Self::Error> {
+        let network_connections = collection
+            .iter()
+            .filter(|c| c.controller.is_none())
+            .map(|c| {
+                let mut conn = NetworkConnection::try_from(c.clone()).unwrap();
+                if let Some(ref mut bond) = conn.bond {
+                    bond.ports = collection.ports_for(c.uuid);
+                }
+                if let Some(ref mut bridge) = conn.bridge {
+                    bridge.ports = collection.ports_for(c.uuid);
+                };
+                NetworkConnectionWithState {
+                    connection: conn,
+                    state: c.state,
+                }
+            })
+            .collect();
+
+        Ok(NetworkConnectionsWithStateCollection(network_connections))
     }
 }
 
@@ -1625,7 +1812,7 @@ impl TryFrom<NetworkState> for SystemInfo {
     type Error = NetworkStateError;
 
     fn try_from(state: NetworkState) -> Result<Self, Self::Error> {
-        let connections: NetworkConnectionsCollection =
+        let connections: NetworkConnectionsWithStateCollection =
             ConnectionCollection(state.connections).try_into()?;
 
         Ok(SystemInfo {
@@ -1690,7 +1877,7 @@ impl TryFrom<BondConfig> for BondSettings {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 pub struct BridgeConfig {
     pub stp: Option<bool>,
     pub priority: Option<u32>,
@@ -1718,7 +1905,7 @@ impl TryFrom<BridgeSettings> for BridgeConfig {
         let stp = settings.stp;
         let priority = settings.priority;
         let forward_delay = settings.forward_delay;
-        let hello_time = settings.forward_delay;
+        let hello_time = settings.hello_time;
 
         Ok(BridgeConfig {
             stp,
@@ -1743,7 +1930,7 @@ impl TryFrom<BridgeConfig> for BridgeSettings {
         })
     }
 }
-#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 pub struct BridgePortConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub priority: Option<u32>,
@@ -1751,14 +1938,14 @@ pub struct BridgePortConfig {
     pub path_cost: Option<u32>,
 }
 
-#[derive(Default, Debug, PartialEq, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Default, Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 pub struct InfinibandConfig {
     pub p_key: Option<i32>,
     pub parent: Option<String>,
     pub transport_mode: InfinibandTransportMode,
 }
 
-#[derive(Default, Debug, PartialEq, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Default, Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 pub enum InfinibandTransportMode {
     #[default]
     Datagram,
@@ -1791,14 +1978,14 @@ impl fmt::Display for InfinibandTransportMode {
     }
 }
 
-#[derive(Default, Debug, PartialEq, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Default, Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 pub enum TunMode {
     #[default]
     Tun = 1,
     Tap = 2,
 }
 
-#[derive(Default, Debug, PartialEq, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Default, Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 pub struct TunConfig {
     pub mode: TunMode,
     pub group: Option<String>,
@@ -1830,7 +2017,7 @@ pub enum NetworkChange {
     AccessPointRemoved(String),
 }
 
-#[derive(Default, Debug, PartialEq, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Default, Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 pub struct IEEE8021XConfig {
     pub eap: Vec<EAPMethod>,
     pub phase2_auth: Option<Phase2AuthMethod>,
@@ -1919,7 +2106,7 @@ impl TryFrom<IEEE8021XConfig> for IEEE8021XSettings {
 #[error("Invalid eap method: {0}")]
 pub struct InvalidEAPMethod(String);
 
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 pub enum EAPMethod {
     LEAP,
     MD5,
@@ -1966,7 +2153,7 @@ impl fmt::Display for EAPMethod {
 #[error("Invalid phase2-auth method: {0}")]
 pub struct InvalidPhase2AuthMethod(String);
 
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 pub enum Phase2AuthMethod {
     PAP,
     CHAP,
@@ -2012,14 +2199,14 @@ impl fmt::Display for Phase2AuthMethod {
     }
 }
 
-#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 pub struct OvsBridgeConfig {
     pub mcast_snooping_enable: Option<bool>,
     pub rstp_enable: Option<bool>,
     pub stp_enable: Option<bool>,
 }
 
-#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 pub struct OvsPortConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tag: Option<u16>,
@@ -2062,7 +2249,7 @@ impl fmt::Display for OvsInterfaceType {
         write!(f, "{}", value)
     }
 }
-#[derive(Default, Debug, PartialEq, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Default, Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 pub enum OvsInterfaceType {
     #[default]
     Empty,
@@ -2072,10 +2259,10 @@ pub enum OvsInterfaceType {
     Dpdk,
 }
 
-#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 pub struct OvsInterfaceConfig {
     pub interface_type: OvsInterfaceType,
 }
 
-#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 pub struct OvsBridgePortConfig {}

@@ -30,6 +30,18 @@ import {
 } from "~/utils/network";
 
 /**
+ * Union type of all connection type string values.
+ */
+export type ConnectionType =
+  | "ethernet"
+  | "wireless"
+  | "loopback"
+  | "bond"
+  | "bridge"
+  | "vlan"
+  | "unknown";
+
+/**
  * Enum for AccessPoint flags
  *
  * https://networkmanager.dev/docs/api/latest/nm-dbus-types.html#NM80211ApFlags
@@ -68,14 +80,14 @@ enum ApSecurityFlags {
  */
 type ConnectionBindingMode = "none" | "iface" | "mac";
 
-enum ConnectionType {
-  ETHERNET = "ethernet",
-  WIFI = "wireless",
-  LOOPBACK = "loopback",
-  BOND = "bond",
-  BRIDGE = "bridge",
-  VLAN = "vlan",
-  UNKNOWN = "unknown",
+enum BondMode {
+  BALANCE_ROUND_ROBIN = "balance-rr",
+  ACTIVE_BACKUP = "active-backup",
+  BALANCE_XOR = "balance-xor",
+  BROADCAST = "broadcast",
+  LACP = "802.3ad",
+  BALANCE_TLB = "balance-tlb",
+  BALANCE_ALB = "balance-alb",
 }
 
 enum DeviceState {
@@ -97,10 +109,11 @@ enum ConnectionStatus {
 
 // Current state of the connection.
 enum ConnectionState {
-  activating = "activating",
-  activated = "activated",
-  deactivating = "deactivating",
-  deactivated = "deactivated",
+  UNKNOWN = "unknown",
+  ACTIVATING = "activating",
+  ACTIVATED = "activated",
+  DEACTIVATING = "deactivating",
+  DEACTIVATED = "deactivated",
 }
 
 enum ConnectionMethod {
@@ -122,6 +135,14 @@ enum NetworkState {
   DISCONNECTED = "disconnected",
   CONNECTING = "connecting",
   CONNECTED = "connected",
+}
+
+enum ConnectivityState {
+  UNKNOWN = "unknown",
+  NONE = "none",
+  PORTAL = "portal",
+  LIMITED = "limited",
+  FULL = "full",
 }
 
 enum SecurityProtocols {
@@ -251,6 +272,8 @@ type APIRoute = {
 
 type APIConnection = {
   id: string;
+  bond?: Bond;
+  bridge?: Bridge;
   interface?: string;
   macAddress?: string;
   addresses?: string[];
@@ -262,7 +285,7 @@ type APIConnection = {
   method6?: string;
   wireless?: Wireless;
   status: ConnectionStatus;
-  state: ConnectionState;
+  state?: ConnectionState;
   persistent: boolean;
 };
 
@@ -290,6 +313,21 @@ class Wireless {
   }
 }
 
+type Bond = {
+  mode: BondMode;
+  options: string;
+  ports: string[];
+};
+
+type Bridge = {
+  forwardDelay?: number;
+  priority?: number;
+  maxAge?: number;
+  ports: string[];
+  helloTime?: number;
+  stp?: boolean;
+};
+
 type ConnectionOptions = {
   iface?: string;
   macAddress?: string;
@@ -301,6 +339,8 @@ type ConnectionOptions = {
   method4?: ConnectionMethod;
   method6?: ConnectionMethod;
   wireless?: Wireless;
+  bond?: Bond;
+  bridge?: Bridge;
   status?: ConnectionStatus;
   state?: ConnectionState;
   persistent?: boolean;
@@ -320,7 +360,7 @@ type ConnectionOptions = {
 class Connection {
   id: string;
   status: ConnectionStatus = ConnectionStatus.UP;
-  state: ConnectionState;
+  state?: ConnectionState;
   iface: string;
   macAddress?: string;
   addresses: IPAddress[] = [];
@@ -330,6 +370,8 @@ class Connection {
   gateway6?: string = "";
   method4?: ConnectionMethod;
   method6?: ConnectionMethod;
+  bond?: Bond;
+  bridge?: Bridge;
   wireless?: Wireless;
   persistent: boolean;
 
@@ -344,13 +386,12 @@ class Connection {
   }
 
   static fromApi(connection: APIConnection) {
-    const { id, status, interface: iface, ...options } = connection;
+    const { id, interface: iface, ...options } = connection;
     const nameservers = connection.nameservers || [];
     const dnsSearchList = connection.dnsSearchList || [];
     const addresses = connection.addresses?.map(buildAddress) || [];
     const conn = new Connection(id, {
       ...options,
-      status,
       // FIXME: try a better approach for methods/gateway and/or typecasting
       method4: options.method4 as ConnectionMethod,
       method6: options.method6 as ConnectionMethod,
@@ -375,7 +416,7 @@ class Connection {
   }
 
   toApi() {
-    const { iface, addresses, ...newConnection } = this;
+    const { iface, addresses, state, ...newConnection } = this;
     const result: APIConnection = {
       ...newConnection,
       interface: iface,
@@ -409,7 +450,7 @@ type WifiNetwork = AccessPoint & {
 
 type GeneralState = {
   copyNetwork: boolean;
-  connectivity: boolean;
+  connectivity: ConnectivityState;
   networkingEnabled: boolean;
   wirelessEnabled: boolean;
 };
@@ -545,11 +586,12 @@ export {
   AccessPoint,
   ApFlags,
   ApSecurityFlags,
+  BondMode,
   Connection,
+  ConnectivityState,
   ConnectionState,
   ConnectionStatus,
   ConnectionMethod,
-  ConnectionType,
   Device,
   DeviceState,
   DeviceType,
@@ -565,6 +607,8 @@ export {
 export type {
   APIAccessPoint,
   APIConnection,
+  Bond,
+  Bridge,
   ConnectionBindingMode,
   ConnectionOptions,
   APIDevice,

@@ -88,6 +88,11 @@ translations:
     ru: Лёгкий дистрибутив для контейнерных нагрузок с автоматическим управлением и
       обновлениями. openSUSE MicroOS использует атомарные обновления и btrfs на
       только-чтение. Всегда актуален благодаря модели непрерывных обновлений.
+    sk: Rýchla, kompaktná distribúcia navrhnutá na hosťovanie kontajnerových
+      pracovných záťaží s automatizovanou administráciou a opravami. openSUSE
+      MicroOS poskytuje transakčné (atomické) aktualizácie na koreňovom
+      súborovom systéme btrfs, ktorý je len na čítanie. Ako distribúcia s
+      rolujúcim vydaním je softvér vždy aktuálny.
     sv: En snabb, liten distribution utformad för att vara värd för
       arbetsbelastningar i behållare med automatiserad administration och
       patchning. openSUSE MicroOS tillhandahåller transaktionella (atomära)
@@ -160,15 +165,6 @@ software:
   optional_packages: []
   base_product: MicroOS
 
-security:
-  lsm: selinux
-  available_lsms:
-    selinux:
-      patterns:
-        - microos_selinux
-    none:
-      patterns: null
-
 storage:
   space_policy: delete
   volumes:
@@ -191,21 +187,6 @@ storage:
           # Unified var subvolume - https://lists.opensuse.org/opensuse-packaging/2017-11/msg00017.html
           - path: var
             copy_on_write: false
-          # Architecture specific subvolumes
-          - path: boot/grub2/arm64-efi
-            archs: aarch64
-          - path: boot/grub2/arm-efi
-            archs: arm
-          - path: boot/grub2/i386-pc
-            archs: x86_64
-          - path: boot/grub2/powerpc-ieee1275
-            archs: ppc,!board_powernv
-          - path: boot/grub2/s390x-emu
-            archs: s390
-          - path: boot/grub2/x86_64-efi
-            archs: x86_64
-          - path: boot/grub2/riscv64-efi
-            archs: riscv64
       size:
         auto: true
       outline:
