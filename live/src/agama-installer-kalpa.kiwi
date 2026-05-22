@@ -15,7 +15,7 @@
         <profile name="Online" description="Kalpa Desktop online installer (packages from network)" import="true"/>
     </profiles>
     <preferences>
-        <version>20260515</version>
+        <version>20260521</version>
         <packagemanager>zypper</packagemanager>
         <locale>en_US</locale>
         <keytable>us</keytable>
@@ -75,6 +75,7 @@
         <package name="timezone"/>
         <package name="dracut-kiwi-live"/>
         <package name="NetworkManager"/>
+        <package name="NetworkManager-tui"/>
         <package name="agama"/>
         <package name="agama-auto"/>
         <package name="agama-yast"/>
@@ -143,6 +144,7 @@
     <!-- branding and product definition: both profiles -->
     <packages type="image" profiles="Offline,Online">
         <package name="agama-products-kalpa"/>
+        <package name="chrony"/>
         <package name="grub2-branding-kalpa" arch="aarch64,x86_64"/>
         <package name="MozillaFirefox-branding-openSUSE"/>
         <package name="openSUSE-build-key"/>
