@@ -176,6 +176,10 @@
   --pf-t--global--color--status--warning--200: #f5c518;
   --pf-t--global--color--status--info--default: var(--agm-t--color--waterhole);
   --pf-t--global--icon--color--status--info--default: var(--agm-t--color--waterhole);
+
+  svg {
+    fill: currentColor;
+  }
 }
 
 /*
@@ -359,12 +363,6 @@ strong {
   }
 }
 
-.pf-v6-theme-dark .pf-v6-c-masthead {
-  .pf-v6-c-button.pf-m-plain svg,
-  .pf-v6-c-menu-toggle.pf-m-plain svg {
-    fill: currentColor;
-  }
-}
 
 .pf-v6-c-page__main-section {
   --pf-v6-c-page__main-section--PaddingInlineStart: var(--pf-t--global--spacer--md);
