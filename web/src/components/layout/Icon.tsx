@@ -35,6 +35,7 @@ import Backspace from "@icons/backspace.svg?component";
 import CheckCircle from "@icons/check_circle.svg?component";
 import ChevronLeft from "@icons/chevron_left.svg?component";
 import ChevronRight from "@icons/chevron_right.svg?component";
+import DarkMode from "@icons/dark_mode.svg?component";
 import Delete from "@icons/delete.svg?component";
 import DoneAll from "@icons/done_all.svg?component";
 import DeployedCodeUpdate from "@icons/deployed_code_update.svg?component";
@@ -52,6 +53,7 @@ import HardDrive from "@icons/hard_drive.svg?component";
 import Info from "@icons/info.svg?component";
 import Keyboard from "@icons/keyboard.svg?component";
 import Language from "@icons/language.svg?component";
+import LightMode from "@icons/light_mode.svg?component";
 import ListAlt from "@icons/list_alt.svg?component";
 import Lock from "@icons/lock.svg?component";
 import ManageAccounts from "@icons/manage_accounts.svg?component";
@@ -86,6 +88,7 @@ const icons = {
   check_circle: CheckCircle,
   chevron_left: ChevronLeft,
   chevron_right: ChevronRight,
+  dark_mode: DarkMode,
   delete: Delete,
   done_all: DoneAll,
   deployed_code_update: DeployedCodeUpdate,
@@ -103,6 +106,7 @@ const icons = {
   keyboard: Keyboard,
   keyboard_arrow_down: KeyboardArrowDown,
   language: Language,
+  light_mode: LightMode,
   list_alt: ListAlt,
   lock: Lock,
   manage_accounts: ManageAccounts,

@@ -33,6 +33,7 @@ import {
 } from "@patternfly/react-core";
 import Icon from "~/components/layout/Icon";
 import Breadcrumbs from "~/components/core/Breadcrumbs";
+import ThemeToggle from "~/components/core/ThemeToggle";
 import { SkipTo } from "~/components/core";
 import { useProductInfo } from "~/hooks/model/config/product";
 import { ROOT } from "~/routes/paths";
@@ -174,6 +175,9 @@ export default function Header({
         <Toolbar isFullHeight>
           <ToolbarContent>
             <ToolbarGroup align={{ default: "alignEnd" }} columnGap={{ default: "columnGapXs" }}>
+              <ToolbarItem>
+                <ThemeToggle />
+              </ToolbarItem>
               {startSlot && <ToolbarItem>{startSlot}</ToolbarItem>}
               {centerSlot && <ToolbarItem>{centerSlot}</ToolbarItem>}
               {endSlot && <ToolbarItem>{endSlot}</ToolbarItem>}

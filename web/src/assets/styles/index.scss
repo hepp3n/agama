@@ -86,15 +86,20 @@
 }
 
 :root {
-  --agm-t--color--pine: #0c322c;
-  --agm-t--color--pine--shade--100: #025937;
-  --agm-t--color--jungle: #30ba78;
-  --agm-t--color--jungle--hover: #c0efde;
-  --agm-t--color--fog: #efefef;
-  --agm-t--color--midnight: #192072;
-  --agm-t--color--waterhole: #2453ff;
+  // Kalpa brand color (#25ac95) darkened for WCAG AA contrast on light backgrounds
+  --agm-t--color--pine: #1a7a6b;
+  --agm-t--color--pine--shade--100: #145e53;
+  // Official Kalpa brand teal — used for icons/accents where contrast allows
+  --agm-t--color--jungle: #25ac95;
+  --agm-t--color--jungle--hover: #cff0ec;
+  // Warm cream inspired by the Kalpa website secondary background
+  --agm-t--color--fog: #f0ece6;
+  --agm-t--color--midnight: #382929;
+  --agm-t--color--waterhole: #4a5dc7;
+  // Divider line color for layout elements
+  --agm-t--color--divider: #c8c0b8;
 
-  --agm-t--action--background--color--hover: #eafaf4;
+  --agm-t--action--background--color--hover: var(--agm-t--color--jungle--hover);
 
   --pf-t--global--background--color--secondary--default: var(--agm-t--color--fog);
   --pf-t--global--background--color--action--plain--hover: var(
@@ -128,7 +133,7 @@
   --pf-t--global--font--weight--200: 600;
   --pf-t--global--font--weight--300: 700;
   --pf-t--global--font--weight--400: 800;
-  --pf-t--global--color--status--warning--200: #fe7c3f;
+  --pf-t--global--color--status--warning--200: #FED43F;
   --pf-t--global--color--status--info--default: var(--agm-t--color--waterhole);
   --pf-t--global--icon--color--status--info--default: var(--agm-t--color--waterhole);
   --pf-t--global--breakpoint--lg: 64rem;
@@ -137,6 +142,44 @@
   --pf-t--global--border--radius--pill: var(--pf-t--global--border--radius--small);
   --pf-t--global--color--brand--clicked: var(--agm-t--color--pine);
   --pf-t--global--text--color--link--default: var(--agm-t--color--pine);
+}
+
+// Dark theme — Kalpa brand teal (#25ac95) is vivid enough for dark backgrounds;
+// backgrounds and neutrals follow the Kalpa website's dark palette.
+.pf-v6-theme-dark {
+  --agm-t--color--pine: #25ac95;
+  --agm-t--color--pine--shade--100: #2fbfa8;
+  --agm-t--color--jungle: #25ac95;
+  --agm-t--color--jungle--hover: #153c38;
+  --agm-t--color--fog: #282828;
+  --agm-t--color--midnight: #382929;
+  --agm-t--color--waterhole: #7b9dff;
+  --agm-t--color--divider: #4a4a4a;
+
+  --agm-t--action--background--color--hover: var(--agm-t--color--jungle--hover);
+
+  --pf-t--global--background--color--secondary--default: var(--agm-t--color--fog);
+  --pf-t--global--background--color--action--plain--hover: var(
+    --agm-t--action--background--color--hover
+  );
+  --pf-t--global--background--color--action--plain--alt--hover: var(
+    --agm-t--action--background--color--hover
+  );
+  --pf-t--global--background--color--action--plain--alt--clicked: var(--agm-t--color--jungle);
+  --pf-t--global--background--color--disabled--default: #4a4a4a;
+
+  --pf-t--global--color--brand--default: var(--agm-t--color--pine);
+  --pf-t--global--color--brand--hover: var(--agm-t--color--pine--shade--100);
+  --pf-t--global--color--brand--clicked: var(--agm-t--color--pine);
+  --pf-t--global--text--color--link--default: var(--agm-t--color--pine);
+
+  --pf-t--global--color--status--warning--200: #f5c518;
+  --pf-t--global--color--status--info--default: var(--agm-t--color--waterhole);
+  --pf-t--global--icon--color--status--info--default: var(--agm-t--color--waterhole);
+
+  svg {
+    fill: currentColor;
+  }
 }
 
 /*
@@ -227,7 +270,7 @@ strong {
 
   &:hover,
   &.pf-m-expanded {
-    background: #c0efde; // var(--agm-t--action--background--color--hover);
+    background: var(--agm-t--action--background--color--hover);
     border-radius: var(--pf-t--global--border--radius--small);
 
     &::before {
@@ -319,6 +362,7 @@ strong {
     font-size: clamp(1.1rem, 0rem + 1.6vw, 1.75rem);
   }
 }
+
 
 .pf-v6-c-page__main-section {
   --pf-v6-c-page__main-section--PaddingInlineStart: var(--pf-t--global--spacer--md);
@@ -588,7 +632,7 @@ nav.agm-breadcrumb h1 {
     bottom: -1.5em;
     left: 50%;
     width: 1px;
-    background: #ccc;
+    background: var(--agm-t--color--divider);
   }
 
   .agm-split-info-layout > .pf-v6-l-grid__item[style*="Order-on-md: 1"],
@@ -607,7 +651,7 @@ nav.agm-breadcrumb h1 {
 
 fieldset {
   border: 0;
-  border-top: 1px solid var(--agm-t--color--fog);
+  border-top: 1px solid var(--agm-t--color--divider);
   padding: 0;
   padding-block-start: var(--pf-t--global--spacer--md);
   margin: 0;
