@@ -15,7 +15,7 @@
         <profile name="Online" description="Kalpa Desktop online installer (packages from network)" import="true"/>
     </profiles>
     <preferences>
-        <version>20260521</version>
+        <version>%OS_VERSION_ID%</version>
         <packagemanager>zypper</packagemanager>
         <locale>en_US</locale>
         <keytable>us</keytable>
