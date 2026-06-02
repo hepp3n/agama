@@ -1,4 +1,10 @@
 -------------------------------------------------------------------
+Tue Jun  2 15:41:36 UTC 2026 - Shawn Dunn <sfalken@kalpadesktop.org>
+
+- Adjust .kiwi definition to track version along with
+  Tumbleweed/MicroOS
+
+-------------------------------------------------------------------
 Mon May 18 00:04:01 UTC 2026 - Shawn Dunn <sfalken@kalpadesktop.org>
 
 - Modify to create Offline and Online installers
