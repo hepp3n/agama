@@ -21,7 +21,7 @@
  */
 
 import React, { Suspense, useId } from "react";
-import { Outlet, useNavigate } from "react-router";
+import { Outlet, useLocation, useNavigate } from "react-router";
 import Link, { LinkProps } from "~/components/core/Link";
 import {
   Button,
@@ -50,9 +50,12 @@ import type { ProgressBackdropProps } from "~/components/core/ProgressBackdrop";
 import ProgressBackdrop from "~/components/core/ProgressBackdrop";
 import Header, { HeaderProps } from "~/components/layout/Header";
 import Loading from "~/components/layout/Loading";
-import ReviewAndInstallButton from "~/components/core/ReviewAndInstallButton";
+import InstallerL10nOptions from "~/components/core/InstallerL10nOptions";
+import InstallerOptionsMenu from "~/components/core/InstallerOptionsMenu";
 import ProgressStatusMonitor from "~/components/core/ProgressStatusMonitor";
+import AppearanceSettings from "~/components/core/AppearanceSettings";
 import Questions from "~/components/questions/Questions";
+import { PRODUCT, ROOT } from "~/routes/paths";
 import { _, TranslatedString } from "~/i18n";
 
 import flexStyles from "@patternfly/react-styles/css/utilities/Flex/flex";
@@ -339,28 +342,24 @@ interface MinimalPageProps extends BasePageProps {
 /**
  * Props for the `Page` component.
  *
- * Combines the standard and minimal variants with additional slot controls.
+ * Combines the standard and minimal variants with additional content controls.
  */
 type PageProps = (StandardPageProps | MinimalPageProps) & {
   /**
-   * If true, the default component in the start slot
-   * (`<ProgressStatusMonitor />`) will not be rendered.
+   * If true, the ProgressStatusMonitor will not be automatically
+   * injected among the header default tools.
    *
-   * Pass a custom `startSlot` to render custom content instead.
-   *
-   * Default: `false` (renders default ProgressStatusMonitor if no `startSlot` provided)
+   * Default: `false` (ProgressStatusMonitor is injected)
    */
-  noDefaultStartSlot?: boolean;
+  noDefaultProgressMonitor?: boolean;
 
   /**
-   * If true, the default component in the end slot
-   * (`<ReviewAndInstallButton />`) will not be rendered.
+   * Whether the localization selector in the header should display its current
+   * values (language and keyboard) next to the icons.
    *
-   * Pass a custom `endSlot` to render custom content instead.
-   *
-   * Default: `false` (renders default ReviewAndInstallButton if no `endSlot` provided)
+   * Default: `false` (icon-only, to save space in the header)
    */
-  noDefaultEndSlot?: boolean;
+  showL10nValues?: boolean;
 };
 
 /**
@@ -379,15 +378,51 @@ const MinimalLayout = ({ children }: Omit<MinimalPageProps, "variant">) => {
 /**
  * Standard page layout with header, optional progress tracking, and optional
  * qestions rendering.
+ *
+ * It also composes the header's trailing content shared by every standard
+ * page: any page-specific content first, followed by the default tools (the
+ * localization selector, the progress status monitor, the appearance settings,
+ * and the installer options menu).
  */
 const StandardLayout = ({
   progress,
   children,
   showQuestions = true,
+  additionalContent,
+  noDefaultProgressMonitor = false,
+  showL10nValues = false,
   ...headerProps
-}: Omit<StandardPageProps, "variant">) => {
+}: Omit<StandardPageProps, "variant"> & {
+  noDefaultProgressMonitor?: boolean;
+  showL10nValues?: boolean;
+}) => {
+  const location = useLocation();
+
+  // Changing the product or mode makes no sense on the product selection page
+  // itself nor during/after the installation.
+  const showChangeProductOption = ![
+    PRODUCT.changeProduct,
+    ROOT.installation,
+    ROOT.installationProgress,
+    ROOT.installationFinished,
+    ROOT.installationExit,
+  ].includes(location.pathname);
+
+  const headerContent = (
+    <>
+      {additionalContent}
+      {!noDefaultProgressMonitor && <ProgressStatusMonitor />}
+      <InstallerL10nOptions showValues={showL10nValues} />
+      <AppearanceSettings />
+      <InstallerOptionsMenu hideLabel showChangeProductOption={showChangeProductOption} />
+    </>
+  );
+
   return (
-    <PFPage isContentFilled masthead={<Header {...headerProps} />}>
+    <PFPage
+      isContentFilled
+      masthead={<Header {...headerProps} additionalContent={headerContent} />}
+    >
       <Suspense fallback={<Loading />}>
         <PageGroup tabIndex={-1} id="main-content">
           {children || <Outlet />}
@@ -452,27 +487,27 @@ const StandardLayout = ({
  * </Page>
  * ```
  */
-const Page = ({
-  variant = "standard",
-  startSlot,
-  endSlot,
-  noDefaultStartSlot,
-  noDefaultEndSlot,
-  children,
-  ...props
-}: PageProps): React.ReactNode => {
+const Page = ({ variant = "standard", children, ...props }: PageProps): React.ReactNode => {
   if (variant === "minimal") {
     return <MinimalLayout>{children}</MinimalLayout>;
   }
 
-  const startSlotContent = startSlot ?? (noDefaultStartSlot ? null : <ProgressStatusMonitor />);
-  const endSlotContent = endSlot ?? (noDefaultEndSlot ? null : <ReviewAndInstallButton />);
+  return <StandardLayout {...props}>{children}</StandardLayout>;
+};
 
-  return (
-    <StandardLayout {...props} startSlot={startSlotContent} endSlot={endSlotContent}>
-      {children || <Outlet />}
-    </StandardLayout>
-  );
+/**
+ * Scrolls the page main container to the top.
+ *
+ * Useful for bringing alerts or validation errors into view after form
+ * submission. Defers scroll to next tick to ensure content is rendered.
+ */
+const scrollToTop = () => {
+  setTimeout(() => {
+    const pageMain = document.querySelector(".pf-v6-c-page__main");
+    if (pageMain) {
+      pageMain.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, 0);
 };
 
 Page.displayName = "agama/core/PageNext";
@@ -484,5 +519,6 @@ Page.Cancel = Cancel;
 Page.Submit = Submit;
 Page.Action = Action;
 Page.Section = Section;
+Page.scrollToTop = scrollToTop;
 
 export default Page;

@@ -1,4 +1,9 @@
 -------------------------------------------------------------------
+Fri Jun 20 00:00:00 UTC 2026 - Shawn Dunn <sfalken@kalpadesktop.org>
+
+- Merge upstream agama v22 base (see agama-installer.changes for full details)
+
+-------------------------------------------------------------------
 Tue Jun  2 15:41:36 UTC 2026 - Shawn Dunn <sfalken@kalpadesktop.org>
 
 - Adjust .kiwi definition to track version along with

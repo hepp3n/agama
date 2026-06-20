@@ -289,6 +289,11 @@
               "type": "array",
               "items": { "$ref": "#/$defs/alias" }
             },
+            "spacePolicy": {
+              "description": "Policy for creating physical volumes: either using all the available space or only the needed space for allocating the logical volumes.",
+              "enum": ["useNeeded", "useAvailable"],
+              "default": "useNeeded"
+            },
             "encryption": { "$ref": "#/$defs/encryption" }
           }
         }
@@ -989,8 +994,13 @@
           "description": "How to mount the device.",
           "enum": ["device", "id", "label", "path", "uuid"]
         },
+        "mkfsExtraArguments": {
+          "description": "Additional arguments injected as-is to the mkfs command when creating the file system.",
+          "type": "string"
+        },
         "mkfsOptions": {
-          "description": "Options for creating the file system.",
+          "deprecated": true,
+          "description": "Deprecated in favor of mkfsExtraArguments",
           "type": "array",
           "items": {
             "type": "string"

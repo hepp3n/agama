@@ -1,4 +1,166 @@
 -------------------------------------------------------------------
+Mon Jun 15 15:45:28 UTC 2026 - Imobach Gonzalez Sosa <igonzalezsosa@suse.com>
+
+- Version 22
+
+-------------------------------------------------------------------
+Mon Jun 15 15:15:12 UTC 2026 - José Iván López González <jlopez@suse.com>
+
+- Unify text with the UI (gh#agama-project/agama#3637).
+
+-------------------------------------------------------------------
+Mon Jun 15 14:58:50 UTC 2026 - Ladislav Slezák <lslezak@suse.com>
+
+- Fixed copying URL credentials to the target system (bsc#1267881)
+
+-------------------------------------------------------------------
+Mon Jun 15 08:05:06 UTC 2026 - Imobach Gonzalez Sosa <igonzalezsosa@suse.com>
+
+- Improve the "agama monitor" and "agama status" texts
+  (gh#agama-project/agama#3621).
+
+-------------------------------------------------------------------
+Mon Jun 15 07:33:59 UTC 2026 - Josef Reidinger <jreidinger@suse.com>
+
+- Mark properly autoinst retry question as the one that should
+  return value for new url (gh#agama-project/agama#3623)
+
+-------------------------------------------------------------------
+Fri Jun 12 17:28:32 UTC 2026 - Knut Anderssen <kanderssen@suse.com>
+
+- The list of products only contains the products and modes
+  descriptions for the current language
+  (gh#agama-project/agama#3619).
+
+-------------------------------------------------------------------
+Fri Jun 12 16:35:53 UTC 2026 - José Iván López González <jlopez@suse.com>
+
+- Adapt storate schemas to allow configuring filesystem options
+  (gh#agama-project/agama#3620).
+
+-------------------------------------------------------------------
+Fri Jun 12 14:06:18 UTC 2026 - Imobach Gonzalez Sosa <igonzalezsosa@suse.com>
+
+- Use the same format to display the result on "validate" and
+  "validate --local" (gh#agama-project/agama#3616).
+- Reduce the validation attempts on "agama config load".
+
+-------------------------------------------------------------------
+Fri Jun 12 12:37:58 UTC 2026 - Imobach Gonzalez Sosa <igonzalezsosa@suse.com>
+
+- Print the status after running the "monitor", "config load",
+  "config edit" and "install" commands (gh#agama-project/agama#3615).
+
+-------------------------------------------------------------------
+Fri Jun 12 12:19:51 UTC 2026 - Josef Reidinger <jreidinger@suse.com>
+
+- Add to `agama monitor` ability to answer questions
+  (gh#agama-project/agama#3606)
+
+-------------------------------------------------------------------
+Fri Jun 12 10:17:34 UTC 2026 - Imobach Gonzalez Sosa <igonzalezsosa@suse.com>
+
+- Implement the RFC9457 for error reporting (gh#agama-project/agama#3611).
+
+-------------------------------------------------------------------
+Wed Jun 10 13:09:55 UTC 2026 - Martin Vidner <mvidner@suse.com>
+
+- Make `agama` command-line help translatable
+  (gh#agama-project/agama#3594).
+
+-------------------------------------------------------------------
+Wed Jun 10 06:18:24 UTC 2026 - Asish Kumar <officialasishkumar@gmail.com>
+
+- Honor extraRepositories repository priorities when adding software
+  repositories through libzypp (related to gh#agama-project/agama#3483).
+
+-------------------------------------------------------------------
+Tue Jun  9 13:27:17 UTC 2026 - José Iván López González <jlopez@suse.com>
+
+- Improve tasks management: code refactoring, fix scope of zFCP and
+  DASD tasks, emit TaskAdded event, avoid iSCSI blocking, manage
+  storage reprobing (related to bsc#1266276).
+
+-------------------------------------------------------------------
+Fri Jun  5 09:10:56 UTC 2026 - José Iván López González <jlopez@suse.com>
+
+- Adapt manager to set the list of resolvables. It asks each module
+  about its requirements and configures the software service
+  (bsc#1266276).
+
+-------------------------------------------------------------------
+Thu Jun  4 13:33:09 UTC 2026 - Imobach Gonzalez Sosa <igonzalezsosa@suse.com>
+
+- Wait until all pending tasks are finished before starting the installation
+  (bsc#1266276).
+
+-------------------------------------------------------------------
+Wed Jun  3 10:05:13 UTC 2026 - Josef Reidinger <jreidinger@suse.com>
+
+- Fix software progress in openSUSE where it incorrectly report
+  proposing software selection instead of refreshing repositories
+  (gh#agama-project/agama#3579)
+
+-------------------------------------------------------------------
+Mon Jun  1 13:47:34 UTC 2026 - José Iván López González <jlopez@suse.com>
+
+- Extend storage schemas to allow configuring the space policy for
+  creating new LVM physical volumes (jsc#PED-14153).
+
+-------------------------------------------------------------------
+Fri May 29 09:47:43 UTC 2026 - Josef Reidinger <jreidinger@suse.com>
+
+- Add "access" key to profile to allow after installation
+  remote access via ssh or cockpit (jsc#AGM-151)
+
+-------------------------------------------------------------------
+Wed May 27 13:40:40 UTC 2026 - Imobach Gonzalez Sosa <igonzalezsosa@suse.com>
+
+- Use "sshPublicKeys" by default (gh#agama-project/agama#3531).
+
+-------------------------------------------------------------------
+Wed May 27 07:40:40 UTC 2026 - Michal Filka <mfilka@suse.com>
+
+- Do not display system information in output of agama status
+  command (gh#agama-project/agama#3553).
+
+-------------------------------------------------------------------
+Fri May 22 13:07:14 UTC 2026 - Knut Anderssen <kanderssen@suse.com>
+
+- When activating a network connection which bind device has been
+  modified it will disconnect the devices which couldn't apply
+  the connection anymore (gh#agama-project/agama#3532, bsc#1265446).
+
+-------------------------------------------------------------------
+Fri May 22 09:08:29 UTC 2026 - Imobach Gonzalez Sosa <igonzalezsosa@suse.com>
+
+- Redesign the progress tracking in the command-line interface.
+- Display the progress inline, preventing rendering artifacts in bsc#1265936.
+
+-------------------------------------------------------------------
+Thu May 21 15:53:10 UTC 2026 - Imobach Gonzalez Sosa <igonzalezsosa@suse.com>
+
+- Prevent the monitor from blocking (related to bsc#1265431).
+
+-------------------------------------------------------------------
+Wed May 20 12:13:47 UTC 2026 - Knut Anderssen <kanderssen@suse.com>
+
+- Fix the network connection write allowing to unset some network
+  specific connection settings and improving the changes detection
+  (gh#agama-project/agama#3525, bsc#1265565, related bsc#1260465).
+
+-------------------------------------------------------------------
+Tue May 19 12:27:20 UTC 2026 - José Iván López González <jlopez@suse.com>
+
+- Perform storage probing in a separate task to avoid blocking the
+  service (related to bsc#1265302).
+
+-------------------------------------------------------------------
+Mon May 18 10:58:44 UTC 2026 - Imobach Gonzalez Sosa <igonzalezsosa@suse.com>
+
+- Detect when the WebSocket gets disconnected (bsc#1265431).
+
+-------------------------------------------------------------------
 Sun May 17 22:54:14 UTC 2026 - Imobach Gonzalez Sosa <igonzalezsosa@suse.com>
 
 - Improve the monitor to work when the terminal is not available. It

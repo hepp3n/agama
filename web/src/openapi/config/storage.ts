@@ -299,6 +299,14 @@ export interface EncryptionLuks2 {
 export interface EncryptionPervasiveLuks2 {
   pervasiveLuks2: {
     password: EncryptionPassword;
+    /**
+     * List of APQNs used to generate secure keys.
+     */
+    apqns?: string[];
+    /**
+     * Type of the generated secure key.
+     */
+    keyType?: "EP11-AES" | "CCA-AESCIPHER" | "CCA-AESDATA";
   };
 }
 /**
@@ -326,9 +334,9 @@ export interface Filesystem {
   path?: string;
   mountBy?: MountBy;
   /**
-   * Options for creating the file system.
+   * Additional arguments injected as-is to the mkfs command when creating the file system.
    */
-  mkfsOptions?: string[];
+  mkfsExtraArguments?: string;
   /**
    * Options to add to the fourth field of fstab.
    */
@@ -454,6 +462,10 @@ export interface SimplePhysicalVolumesGenerator {
 export interface AdvancedPhysicalVolumesGenerator {
   generate: {
     targetDevices: Alias[];
+    /**
+     * Policy for creating physical volumes: either using all the available space or only the needed space for allocating the logical volumes.
+     */
+    spacePolicy?: "useNeeded" | "useAvailable";
     encryption?: Encryption;
   };
 }

@@ -51,11 +51,11 @@ import {
   Title,
 } from "@patternfly/react-core";
 import { Navigate, useNavigate, useSearchParams } from "react-router";
-import { InstallerL10nOptions, Link, Page, SubtleContent } from "~/components/core";
+import { Page, SubtleContent } from "~/components/core";
 import ProductLogo from "~/components/product/ProductLogo";
 import LicenseDialog from "~/components/product/LicenseDialog";
 import Text from "~/components/core/Text";
-import { putConfig } from "~/api";
+import { patchConfig, putConfig } from "~/api";
 import { useProduct, useProductInfo } from "~/hooks/model/config/product";
 import { useSystem } from "~/hooks/model/system";
 import { useSystem as useSystemSoftware } from "~/hooks/model/system/software";
@@ -308,6 +308,10 @@ const ProductFormSubmitLabel = ({
  * Props for ProductFormSubmitLabelHelp component
  */
 type ProductFormSubmitLabelHelpProps = {
+  /** The product currently configured in the system */
+  currentProduct?: Product;
+  /** The product mode configured in the system */
+  currentModeId?: string;
   /** The product selected by the user */
   selectedProduct?: Product;
   /** The product mode selected by the user */
@@ -323,6 +327,8 @@ type ProductFormSubmitLabelHelpProps = {
  * Shows warnings for missing product selection or not accepted license.
  */
 const ProductFormSubmitLabelHelp = ({
+  currentProduct,
+  currentModeId,
   selectedProduct,
   selectedMode,
   hasEula,
@@ -336,6 +342,11 @@ const ProductFormSubmitLabelHelp = ({
     text = _("Select a product mode to continue.");
   } else if (hasEula && !isEulaAccepted) {
     text = _("License acceptance is required to continue.");
+  } else if (
+    currentProduct &&
+    (selectedProduct.id !== currentProduct?.id || selectedMode?.id !== currentModeId)
+  ) {
+    text = _("Changing the product will reset your current settings.");
   } else {
     return;
   }
@@ -533,15 +544,13 @@ const ProductForm = ({
                 selectedMode={selectedMode}
               />
             </Page.Submit>
-            {currentProduct && !isSubmitted && (
-              <Link to={ROOT.overview} size="lg" variant="link">
-                {_("Cancel")}
-              </Link>
-            )}
+            {currentProduct && !isSubmitted && <Page.Back size="lg">{_("Cancel")}</Page.Back>}
           </Split>
         </StackItem>
         <StackItem>
           <ProductFormSubmitLabelHelp
+            currentProduct={currentProduct}
+            currentModeId={currentModeId}
             selectedProduct={selectedProduct}
             selectedMode={selectedMode}
             hasEula={mountEulaCheckbox}
@@ -702,16 +711,22 @@ const ProductSelectionContent = () => {
   const onSubmit = async (selectedProduct: Product, selectedMode: string) => {
     setIsSubmmited(true);
     setSubmmitedSelection(selectedProduct);
-    // Put product and mode only in order to reset the rest of the config, which can depend on the selected product and mode (bsc#1264438)
-    putConfig({ product: { id: selectedProduct.id, mode: selectedMode } });
+    const productConfig = { product: { id: selectedProduct.id, mode: selectedMode } };
+    if (currentProduct) {
+      // Use PUT to reset the config when changing product (bsc#1264438)
+      putConfig(productConfig);
+    } else {
+      // Use PATCH to preserve initial settings when no product was selected yet
+      patchConfig(productConfig);
+    }
   };
 
   return (
     <Page
+      showL10nValues={!currentProduct}
       breadcrumbs={[
         { label: <ProductSelectionTitle products={products} currentProduct={currentProduct} /> },
       ]}
-      endSlot={<InstallerL10nOptions />}
     >
       <Page.Content>
         <Flex gap={{ default: "gapXs" }} direction={{ default: "column" }}>
@@ -720,9 +735,13 @@ const ProductSelectionContent = () => {
           </Content>
           {currentProduct && (
             <SubtleContent>
-              {_(
-                "Installation settings will automatically update to match the new product's defaults.",
-              )}
+              {
+                // TRANSLATORS: hint shown when changing the already selected
+                // product, explaining that the current configuration is lost.
+                _(
+                  "The current configuration will be discarded to apply the default settings of the new product.",
+                )
+              }
             </SubtleContent>
           )}
         </Flex>

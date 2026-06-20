@@ -64,6 +64,8 @@ export interface Filesystem {
   default: boolean;
   type?: FilesystemType;
   label?: string;
+  mkfsExtraArguments?: string;
+  mountOptions?: string[];
 }
 export interface Partition {
   name?: string;
@@ -94,6 +96,7 @@ export interface VolumeGroup {
   vgName: string;
   extentSize?: number;
   targetDevices?: string[];
+  targetDevicesPolicy?: "useNeeded" | "useAvailable";
   spacePolicy?: SpacePolicy;
   logicalVolumes?: LogicalVolume[];
 }

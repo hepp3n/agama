@@ -54,6 +54,9 @@ sed -i -e "s/^\s*#\s*download.connect_timeout\s*=\s*.*$/download.connect_timeout
 fi
 sed -i '/^solver\.onlyRequires = true/d' /etc/zypp/zypp.conf
 
+# combustion requires fstab file, create a dummy one
+touch /etc/fstab
+
 # activate services
 systemctl enable sshd.service
 systemctl enable NetworkManager.service

@@ -22,8 +22,8 @@
 
 import React, { Suspense } from "react";
 import { AuthProvider } from "./auth";
+import { AppearanceProvider } from "./appearance";
 import { SectionConfirmationProvider } from "./section-confirmation";
-import { ThemeProvider } from "./theme";
 import { Loading } from "~/components/layout";
 
 /**
@@ -32,11 +32,11 @@ import { Loading } from "~/components/layout";
 function RootProviders({ children }: React.PropsWithChildren) {
   return (
     <Suspense fallback={<Loading />}>
-      <ThemeProvider>
+      <AppearanceProvider>
         <AuthProvider>
           <SectionConfirmationProvider>{children}</SectionConfirmationProvider>
         </AuthProvider>
-      </ThemeProvider>
+      </AppearanceProvider>
     </Suspense>
   );
 }

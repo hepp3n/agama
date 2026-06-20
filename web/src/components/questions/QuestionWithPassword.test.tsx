@@ -77,7 +77,11 @@ jest.mock("~/hooks/model/system", () => ({
 
 jest.mock("~/hooks/model/status", () => ({
   ...jest.requireActual("~/hooks/model/status"),
-  useStatus: (): ReturnType<typeof useStatus> => ({ stage: "configuring", progresses: [] }),
+  useStatus: (): ReturnType<typeof useStatus> => ({
+    stage: "configuring",
+    tasks: [],
+    progresses: [],
+  }),
 }));
 
 jest.mock("~/hooks/model/config/product", () => ({
@@ -105,7 +109,7 @@ describe("QuestionWithPassword", () => {
 
   it("allows opening the installer keymap settings", async () => {
     const { user } = renderQuestion();
-    const changeKeymapButton = screen.getByRole("button", { name: "Change keyboard layout" });
+    const changeKeymapButton = screen.getByRole("button", { name: "Keyboard" });
     await user.click(changeKeymapButton);
     screen.getByRole("dialog", { name: "Change keyboard" });
   });

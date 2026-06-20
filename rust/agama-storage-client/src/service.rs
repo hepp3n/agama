@@ -24,7 +24,8 @@ use agama_utils::{
     actor::{self, Actor, Handler, MessageHandler},
     api::{bootloader, iscsi, storage::Config, Issue},
     arch::Arch,
-    BoxFuture,
+    message::GetResolvables,
+    BoxFuture, Resolvable,
 };
 use async_trait::async_trait;
 use tokio::sync::oneshot;
@@ -106,6 +107,36 @@ pub struct Service {
     zfcp_proxy: Option<ZFCPProxy<'static>>,
 }
 
+impl Service {
+    /// Runs the probe action in a separate task.
+    ///
+    /// There are chances to block the service if a probing is requested. For example, if the D-Bus
+    /// service is waiting for a question and the probe action is called, then this service task
+    /// keeps blocked until the question is answered. This typically happens when setting a config
+    /// and a monitor (e.g., iSCSI monitor) requests a storage probe.
+    ///
+    /// It is important to avoid blocking the service task, otherwise no info can be retrieved from
+    /// D-Bus, even though the info is cached by the proxy.
+    ///
+    /// Theoretically, this same problem could happen by calling to activate or setting the locale,
+    /// but the UI does not allow those options if there are questions.
+    ///
+    /// TODO: Decide how to behave when there are questions and a new change is requested to D-Bus
+    /// (exit with error, call D-Bus without waiting, ...).
+    async fn probe(&mut self) -> Result<(), Error> {
+        let proxy = self.storage_proxy.clone();
+
+        tokio::spawn(async move {
+            let result = proxy.probe().await;
+            if let Err(error) = &result {
+                tracing::error!("Failed to probe storage: {error}");
+            }
+        });
+
+        Ok(())
+    }
+}
+
 impl Actor for Service {
     type Error = Error;
 }
@@ -115,7 +146,7 @@ impl MessageHandler<message::CallAction> for Service {
     async fn handle(&mut self, message: message::CallAction) -> Result<(), Error> {
         match message.action.as_str() {
             "Activate" => self.storage_proxy.activate().await?,
-            "Probe" => self.storage_proxy.probe().await?,
+            "Probe" => self.probe().await?,
             "Install" => self.storage_proxy.install().await?,
             "Finish" => self.storage_proxy.finish().await?,
             "Umount" => self.storage_proxy.umount().await?,
@@ -164,6 +195,14 @@ impl MessageHandler<message::GetProposal> for Service {
 impl MessageHandler<message::GetIssues> for Service {
     async fn handle(&mut self, _message: message::GetIssues) -> Result<Vec<Issue>, Error> {
         let raw_json = self.storage_proxy.issues().await?;
+        Ok(try_from_string(&raw_json)?)
+    }
+}
+
+#[async_trait]
+impl MessageHandler<GetResolvables> for Service {
+    async fn handle(&mut self, _message: GetResolvables) -> Result<Vec<Resolvable>, Error> {
+        let raw_json = self.storage_proxy.resolvables().await?;
         Ok(try_from_string(&raw_json)?)
     }
 }
@@ -262,12 +301,32 @@ impl MessageHandler<message::bootloader::GetSystem> for Service {
 }
 
 #[async_trait]
+impl MessageHandler<message::bootloader::GetResolvables> for Service {
+    async fn handle(
+        &mut self,
+        _message: message::bootloader::GetResolvables,
+    ) -> Result<Vec<Resolvable>, Error> {
+        let raw_json = self.bootloader_proxy.resolvables().await?;
+        Ok(try_from_string(&raw_json)?)
+    }
+}
+
+#[async_trait]
 impl MessageHandler<message::bootloader::SetConfig> for Service {
-    async fn handle(&mut self, message: message::bootloader::SetConfig) -> Result<(), Error> {
-        self.bootloader_proxy
-            .set_config(&message.config.to_string())
-            .await?;
-        Ok(())
+    async fn handle(
+        &mut self,
+        message: message::bootloader::SetConfig,
+    ) -> Result<BoxFuture<Result<(), Error>>, Error> {
+        let proxy = self.bootloader_proxy.clone();
+        let response = run_in_background(async move {
+            proxy.set_config(&message.config.to_string()).await?;
+            Ok(())
+        });
+        Ok(Box::pin(async move {
+            response
+                .await
+                .map_err(|_| Error::Actor(actor::Error::Response(Self::name())))?
+        }))
     }
 }
 
@@ -303,9 +362,21 @@ impl MessageHandler<message::iscsi::GetConfig> for Service {
 
 #[async_trait]
 impl MessageHandler<message::iscsi::SetConfig> for Service {
-    async fn handle(&mut self, message: message::iscsi::SetConfig) -> Result<(), Error> {
-        let config = serde_json::to_string(&message.config)?;
-        Ok(self.iscsi_proxy.set_config(&config).await?)
+    async fn handle(
+        &mut self,
+        message: message::iscsi::SetConfig,
+    ) -> Result<BoxFuture<Result<(), Error>>, Error> {
+        let proxy = self.iscsi_proxy.clone();
+        let response = run_in_background(async move {
+            let config = serde_json::to_string(&message.config)?;
+            proxy.set_config(&config).await?;
+            Ok(())
+        });
+        Ok(Box::pin(async move {
+            response
+                .await
+                .map_err(|_| Error::Actor(actor::Error::Response(Self::name())))?
+        }))
     }
 }
 
@@ -351,12 +422,23 @@ impl MessageHandler<message::dasd::GetConfig> for Service {
 
 #[async_trait]
 impl MessageHandler<message::dasd::SetConfig> for Service {
-    async fn handle(&mut self, message: message::dasd::SetConfig) -> Result<(), Error> {
-        if let Some(proxy) = &self.dasd_proxy {
-            let config = serde_json::to_string(&message.config)?;
-            proxy.set_config(&config).await?;
-        }
-        Ok(())
+    async fn handle(
+        &mut self,
+        message: message::dasd::SetConfig,
+    ) -> Result<BoxFuture<Result<(), Error>>, Error> {
+        let dasd_proxy = self.dasd_proxy.clone();
+        let response = run_in_background(async move {
+            if let Some(proxy) = dasd_proxy {
+                let config = serde_json::to_string(&message.config)?;
+                proxy.set_config(&config).await?;
+            }
+            Ok(())
+        });
+        Ok(Box::pin(async move {
+            response
+                .await
+                .map_err(|_| Error::Actor(actor::Error::Response(Self::name())))?
+        }))
     }
 }
 
@@ -414,12 +496,23 @@ impl MessageHandler<message::zfcp::GetIssues> for Service {
 
 #[async_trait]
 impl MessageHandler<message::zfcp::SetConfig> for Service {
-    async fn handle(&mut self, message: message::zfcp::SetConfig) -> Result<(), Error> {
-        if let Some(proxy) = &self.zfcp_proxy {
-            let config = serde_json::to_string(&message.config)?;
-            proxy.set_config(&config).await?;
-        }
-        Ok(())
+    async fn handle(
+        &mut self,
+        message: message::zfcp::SetConfig,
+    ) -> Result<BoxFuture<Result<(), Error>>, Error> {
+        let zfcp_proxy = self.zfcp_proxy.clone();
+        let response = run_in_background(async move {
+            if let Some(proxy) = zfcp_proxy {
+                let config = serde_json::to_string(&message.config)?;
+                proxy.set_config(&config).await?;
+            }
+            Ok(())
+        });
+        Ok(Box::pin(async move {
+            response
+                .await
+                .map_err(|_| Error::Actor(actor::Error::Response(Self::name())))?
+        }))
     }
 }
 

@@ -44,6 +44,7 @@ use zypp_agama::{errors::ZyppResult, ZyppError};
 use crate::{
     callbacks::{self, ask_software_question},
     model::{
+        packages::ResolvableTypeExt,
         registration::RegistrationError,
         state::{self, SoftwareState},
         WriteIssues,
@@ -332,6 +333,7 @@ impl ZyppServer {
                 alias: repo.alias,
                 url: repo.url,
                 enabled: repo.enabled,
+                priority: None,
             })
             .collect();
 
@@ -383,6 +385,9 @@ impl ZyppServer {
             if !issues.is_empty() {
                 return Self::send_issues_and_finish(issues, tx, progress);
             }
+
+            // registration phase finishes
+            progress.cast(progress::message::Next::new(Scope::Software))?;
         }
 
         self.trusted_keys = state.trusted_gpg_keys;
@@ -390,7 +395,6 @@ impl ZyppServer {
         self.unsigned_repos = state.unsigned_repos;
         security.set_unsigned_repos(self.unsigned_repos.clone());
 
-        progress.cast(progress::message::Next::new(Scope::Software))?;
         let old_aliases: Vec<_> = old_state
             .repositories
             .iter()
@@ -410,10 +414,11 @@ impl ZyppServer {
             .filter(|r| !aliases.contains(&r.alias))
             .collect();
         for repo in &to_add {
-            let result = zypp.add_repository(&repo.alias, &repo.url, |percent, alias| {
-                tracing::info!("Adding repository {} ({}%)", alias, percent);
-                true
-            });
+            let result =
+                zypp.add_repository(&repo.alias, &repo.url, repo.priority, |percent, alias| {
+                    tracing::info!("Adding repository {} ({}%)", alias, percent);
+                    true
+                });
 
             if let Err(error) = result {
                 let message = format!("Could not add the repository {}", repo.alias);
@@ -440,6 +445,7 @@ impl ZyppServer {
             }
         }
 
+        // all repos are added or removed as needed
         progress.cast(progress::message::Next::new(Scope::Software))?;
         if !to_add.is_empty() || !to_remove.is_empty() {
             let result = zypp.load_source(
@@ -457,6 +463,9 @@ impl ZyppServer {
                 );
             }
         }
+
+        // repositories refresh finished
+        progress.cast(progress::message::Next::new(Scope::Software))?;
 
         // reset everything to start from scratch
         zypp.reset_resolvables();
@@ -569,7 +578,7 @@ impl ZyppServer {
         skip_if_missing: bool,
     ) -> Vec<Issue> {
         let mut issues = vec![];
-        let result = zypp.select_resolvable(name, r#type.into(), reason);
+        let result = zypp.select_resolvable(name, r#type.to_zypp_kind(), reason);
 
         if let Err(error) = result {
             if skip_if_missing {
@@ -594,9 +603,11 @@ impl ZyppServer {
     }
 
     fn unselect_resolvable(&self, zypp: &zypp_agama::Zypp, name: &str, r#type: ResolvableType) {
-        if let Err(error) =
-            zypp.unselect_resolvable(name, r#type.into(), zypp_agama::ResolvableSelected::User)
-        {
+        if let Err(error) = zypp.unselect_resolvable(
+            name,
+            r#type.to_zypp_kind(),
+            zypp_agama::ResolvableSelected::User,
+        ) {
             tracing::info!("Could not unselect '{name}': {error}");
         }
     }
@@ -640,11 +651,13 @@ impl ZyppServer {
         Ok(())
     }
 
-    const ZYPP_DIRS: [&str; 4] = [
+    const ZYPP_DIRS: [&str; 5] = [
         "etc/zypp/services.d",
         "etc/zypp/repos.d",
         "etc/zypp/credentials.d",
         "var/cache/zypp",
+        // the credentials from URLs are stored in the ~/.zypp/credentials.cat file
+        "root/.zypp",
     ];
     fn copy_files(&self) -> ZyppServerResult<()> {
         for path in Self::ZYPP_DIRS {

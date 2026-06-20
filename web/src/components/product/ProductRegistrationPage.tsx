@@ -39,7 +39,7 @@ import { IssuesAlert, Link, NestedContent, Page } from "~/components/core";
 import Interpolate from "~/components/core/Interpolate";
 import Text from "~/components/core/Text";
 import RegistrationExtension from "~/components/product/RegistrationExtension";
-import ProductRegistrationForm from "~/components/product/ProductRegistrationForm";
+import ProductRegistrationForm from "~/components/product/registration-form/Form";
 import { useProposal } from "~/hooks/model/proposal";
 import { useSystem } from "~/hooks/model/system/software";
 import { useProductInfo } from "~/hooks/model/config/product";
@@ -126,7 +126,7 @@ const HostnameAlert = () => {
           sentence={
             // TRANSLATORS: text in square brackets is the section name and will be
             // rendered as a link. Keep the brackets
-            _("To change it, visit the [hostname] section before registering.")
+            _("To change that name, visit [system] section settings before registering.")
           }
         >
           {(section) => (

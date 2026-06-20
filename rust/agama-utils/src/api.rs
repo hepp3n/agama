@@ -58,6 +58,7 @@ pub use proposal::Proposal;
 mod action;
 pub use {action::Action, action::FinishMethod};
 
+pub mod access;
 pub mod bootloader;
 #[cfg(feature = "curl")]
 pub mod files;
@@ -75,3 +76,6 @@ pub mod security;
 pub mod software;
 pub mod storage;
 pub mod users;
+
+pub mod problem_details;
+pub use problem_details::ProblemDetails;

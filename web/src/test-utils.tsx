@@ -36,10 +36,12 @@ import { render, renderHook, within } from "@testing-library/react";
 import { isObject, noop } from "radashi";
 import { createClient } from "~/client/index";
 import { StorageUiStateProvider } from "~/context/storage-ui-state";
+import { TerminalProvider } from "~/context/terminal";
+import { AppearanceProvider } from "~/context/appearance";
 import { DummyWSClient } from "~/client/ws";
 import { Status } from "~/model/status";
 import { Question } from "~/model/question";
-import type { Product } from "~/model/system";
+import type { Product, System } from "~/model/system";
 import type { Config as ProductConfig } from "~/model/config/product";
 
 /**
@@ -134,6 +136,11 @@ const progressesMock = jest.fn().mockReturnValue([]);
 const stageMock = jest.fn().mockReturnValue("configuring");
 
 /**
+ * Internal mock for manipulating tasks
+ */
+const tasksMock = jest.fn().mockReturnValue([]);
+
+/**
  * Allows mocking useStatus#progresses for testing purpose
  *
  * @example
@@ -164,10 +171,19 @@ const mockProgresses = (progresses: Status["progresses"]) =>
  */
 const mockStage = (stage: Status["stage"]) => stageMock.mockReturnValue(stage);
 
+/**
+ * Allows mocking useStatus#tasks for testing purpose
+ *
+ * @example
+ *   mockTasks([{ id: 1, name: "software-proposal", description: "Calculating...", scope: "software" }]);
+ */
+const mockTasks = (tasks: Status["tasks"]) => tasksMock.mockReturnValue(tasks);
+
 jest.mock("~/hooks/model/status", () => ({
   useStatus: () => ({
     progresses: progressesMock(),
     stage: stageMock(),
+    tasks: tasksMock(),
   }),
 }));
 
@@ -207,6 +223,38 @@ const mockProductConfig = (product: ProductConfig | null) =>
 jest.mock("~/hooks/model/config/product", () => ({
   useProductInfo: () => mockUseProductInfo(),
   useProduct: () => mockUseProduct(),
+}));
+
+/**
+ * Internal mock for manipulating the system query (useSystem)
+ */
+const mockUseSystemFn: jest.Mock<System> = jest.fn().mockReturnValue({
+  products: [],
+  l10n: { locales: [], keymaps: [] },
+});
+
+/** Recursively optional version of a type, handy for partial test fixtures. */
+type DeepPartial<T> = {
+  [K in keyof T]?: T[K] extends Array<infer U> ? Array<DeepPartial<U>> : DeepPartial<T[K]>;
+};
+
+/**
+ * Allows mocking useSystem for testing purpose.
+ *
+ * It returns a minimal, empty system by default so components present on every
+ * page (e.g. the header localization selector) do not suspend in tests that do
+ * not provide system data. Override it when a test needs specific data, passing
+ * only the fields under test.
+ *
+ * @example
+ *   mockSystem({ products: [tumbleweed], l10n: { locales, keymaps } });
+ */
+const mockSystem = (system: DeepPartial<System>) =>
+  mockUseSystemFn.mockReturnValue(system as System);
+
+jest.mock("~/hooks/model/system", () => ({
+  ...jest.requireActual("~/hooks/model/system"),
+  useSystem: () => mockUseSystemFn(),
 }));
 
 /**
@@ -315,7 +363,13 @@ const Providers = ({ children }) => {
     client.onClose = noop;
   }
 
-  return <StorageUiStateProvider>{children}</StorageUiStateProvider>;
+  return (
+    <AppearanceProvider>
+      <StorageUiStateProvider>
+        <TerminalProvider>{children}</TerminalProvider>
+      </StorageUiStateProvider>
+    </AppearanceProvider>
+  );
 };
 
 /**
@@ -371,7 +425,11 @@ const plainRender = (ui, options = {}) => {
   const queryClient = new QueryClient({});
 
   const Wrapper = ({ children }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <QueryClientProvider client={queryClient}>
+      <AppearanceProvider>
+        <TerminalProvider>{children}</TerminalProvider>
+      </AppearanceProvider>
+    </QueryClientProvider>
   );
   return {
     user: userEvent.setup(),
@@ -453,8 +511,10 @@ export {
   getColumnValues,
   mockProgresses,
   mockStage,
+  mockTasks,
   mockProduct,
   mockProductConfig,
+  mockSystem,
   mockL10n,
   loadTranslations,
   mockQuestions,

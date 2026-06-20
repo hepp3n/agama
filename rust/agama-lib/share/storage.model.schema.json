@@ -98,6 +98,9 @@
           "type": "array",
           "items": { "type": "string" }
         },
+        "targetDevicesPolicy": {
+          "enum": ["useNeeded", "useAvailable"]
+        },
         "spacePolicy": { "$ref": "#/$defs/spacePolicy" },
         "logicalVolumes": {
           "type": "array",
@@ -139,7 +142,9 @@
         "reuse": { "type": "boolean" },
         "default": { "type": "boolean" },
         "type": { "$ref": "#/$defs/filesystemType" },
-        "label": { "type": "string" }
+        "label": { "type": "string" },
+        "mkfsExtraArguments": { "type": "string" },
+        "mountOptions": { "type": "array", "items": { "type": "string" } }
       }
     },
     "filesystemType": {

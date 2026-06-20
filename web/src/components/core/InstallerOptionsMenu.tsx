@@ -22,6 +22,7 @@
 
 import React, { useState } from "react";
 import {
+  Divider,
   Dropdown,
   DropdownItem,
   DropdownList,
@@ -29,9 +30,11 @@ import {
   MenuToggle,
   MenuToggleElement,
 } from "@patternfly/react-core";
-import Icon from "~/components/layout/Icon";
+import Icon, { IconProps } from "~/components/layout/Icon";
+import VisualTooltip from "~/components/core/VisualTooltip";
 import ChangeProductOption from "~/components/core/ChangeProductOption";
-import { ROOT } from "~/routes/paths";
+import ConfigDialog from "~/components/core/ConfigDialog";
+import DownloadLogsFeedback from "~/components/core/DownloadLogsFeedback";
 import { _ } from "~/i18n";
 
 /**
@@ -51,6 +54,14 @@ export type InstallerOptionsMenuProps = {
   showChangeProductOption?: boolean;
 };
 
+/** Renders a menu item label with a leading icon, aligned consistently. */
+const ItemContent = ({ icon, text }: { icon: IconProps["name"]; text: string }) => (
+  <Flex alignItems={{ default: "alignItemsCenter" }} gap={{ default: "gapSm" }}>
+    <Icon name={icon} size="lg" />
+    {text}
+  </Flex>
+);
+
 /**
  * A dropdown menu containing some installer options, such as
  * product switching and log downloading.
@@ -60,40 +71,68 @@ export default function InstallerOptionsMenu({
   showChangeProductOption = false,
 }: InstallerOptionsMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
   const toggle = () => setIsOpen(!isOpen);
+  const toggleConfig = () => setIsConfigOpen(!isConfigOpen);
+  // TRANSLATORS: label for the button that opens the menu with additional
+  // actions (show settings, download logs, change product...)
+  const toggleLabel = _("More options");
 
+  // DownloadLogsFeedback must wrap the entire Dropdown rather than just the
+  // DropdownItem. When the dropdown closes, PatternFly unmounts its children,
+  // which would reset the feedback alert state and dismiss the pending toast
+  // prematurely. Keeping it as the outermost element ensures it stays mounted
+  // regardless of the dropdown lifecycle.
   return (
-    <Dropdown
-      popperProps={{ position: "right", appendTo: () => document.body }}
-      isOpen={isOpen}
-      onOpenChange={toggle}
-      onSelect={toggle}
-      onActionClick={toggle}
-      toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
-        <MenuToggle
-          ref={toggleRef}
-          onClick={toggle}
-          // TRANSLATORS: this is an ARIA (accesibility) description of an UI element
-          aria-label={_("More installer options")}
-          isExpanded={isOpen}
-          isFullHeight
-          variant="plain"
-        >
-          <Flex gap={{ default: "gapXs" }} alignItems={{ default: "alignItemsCenter" }}>
-            {!hideLabel && _("More")} <Icon name="expand_circle_down" />
-          </Flex>
-        </MenuToggle>
-      )}
-    >
-      <DropdownList>
-        {showChangeProductOption && <ChangeProductOption component="dropdownitem" />}
-        <DropdownItem key="download-config" to={ROOT.config} download="agama-config.json">
-          {_("Download config")}
-        </DropdownItem>
-        <DropdownItem key="download-logs" to={ROOT.logs} download="agama-logs.tar.gz">
-          {_("Download logs")}
-        </DropdownItem>
-      </DropdownList>
-    </Dropdown>
+    <>
+      <DownloadLogsFeedback>
+        {({ download: downloadLogs }) => (
+          <Dropdown
+            popperProps={{ position: "right", appendTo: () => document.body }}
+            isOpen={isOpen}
+            onOpenChange={toggle}
+            onSelect={toggle}
+            onActionClick={toggle}
+            toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+              <VisualTooltip content={toggleLabel}>
+                <MenuToggle
+                  ref={toggleRef}
+                  onClick={toggle}
+                  aria-label={toggleLabel}
+                  isExpanded={isOpen}
+                  isFullHeight
+                  variant="plain"
+                >
+                  <Flex gap={{ default: "gapXs" }} alignItems={{ default: "alignItemsCenter" }}>
+                    {!hideLabel && _("More")} <Icon name="expand_circle_down" isMiddleAligned />
+                  </Flex>
+                </MenuToggle>
+              </VisualTooltip>
+            )}
+          >
+            <DropdownList>
+              <DropdownItem key="show-settings" onClick={toggleConfig}>
+                {/* TRANSLATORS: menu entry that opens the installation
+                    configuration as a JSON file: the machine-readable
+                    representation of the same settings the UI otherwise shows
+                    as widgets across its screens. */}
+                <ItemContent icon="file_json" text={_("Show configuration")} />
+              </DropdownItem>
+              <DropdownItem key="download-logs" onClick={downloadLogs}>
+                {/* TRANSLATORS: menu entry to download the installer logs as an archive */}
+                <ItemContent icon="archive" text={_("Download logs")} />
+              </DropdownItem>
+              {showChangeProductOption && (
+                <>
+                  <Divider component="li" />
+                  <ChangeProductOption component="dropdownitem" showIcon />
+                </>
+              )}
+            </DropdownList>
+          </Dropdown>
+        )}
+      </DownloadLogsFeedback>
+      {isConfigOpen && <ConfigDialog onClose={toggleConfig} />}
+    </>
   );
 }

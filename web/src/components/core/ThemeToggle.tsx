@@ -15,18 +15,25 @@
 import React from "react";
 import { Button } from "@patternfly/react-core";
 import Icon from "~/components/layout/Icon";
-import { useTheme } from "~/context/theme";
+import { useAppearance } from "~/context/appearance";
 import { _ } from "~/i18n";
 
 export default function ThemeToggle() {
-  const { theme, toggleTheme } = useTheme();
-  const isDark = theme === "dark";
+  const { isDark, colorScheme, setColorScheme } = useAppearance();
+
+  const toggle = () => {
+    if (colorScheme === "system") {
+      setColorScheme(isDark ? "light" : "dark");
+    } else {
+      setColorScheme(colorScheme === "dark" ? "light" : "dark");
+    }
+  };
 
   return (
     <Button
       variant="plain"
       aria-label={isDark ? _("Switch to light theme") : _("Switch to dark theme")}
-      onClick={toggleTheme}
+      onClick={toggle}
     >
       <Icon name={isDark ? "light_mode" : "dark_mode"} />
     </Button>
