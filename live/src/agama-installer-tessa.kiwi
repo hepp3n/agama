@@ -2,17 +2,17 @@
 <!-- OBS-ExclusiveArch: aarch64 x86_64 -->
 <!-- OBS-Profiles: @BUILD_FLAVOR@ -->
 
-<image schemaversion="7.5" name="Kalpa_Desktop">
+<image schemaversion="7.5" name="Tessa_Project">
     <description type="system">
-        <author>Shawn W Dunn</author>
-        <contact>sfalken@kalpadesktop.org</contact>
-        <specification>Kalpa Installer ISO</specification>
+        <author>Piotr Tomaszewski</author>
+        <contact>piotr@heppen.dev</contact>
+        <specification>Tessa Installer ISO</specification>
     </description>
     <profiles>
         <!-- use at most 16 characters for the profile name, it is used in the ISO Volume ID -->
         <!-- which is limited to max. 32 characters -->
-        <profile name="Offline" description="Kalpa Desktop offline installer (all packages embedded)" import="true"/>
-        <profile name="Online" description="Kalpa Desktop online installer (packages from network)" import="true"/>
+        <profile name="Offline" description="Tessa Project offline installer (all packages embedded)" import="true"/>
+        <profile name="Online" description="Tessa Project online installer (packages from network)" import="true"/>
     </profiles>
     <preferences>
         <version>%OS_VERSION_ID%</version>
@@ -23,7 +23,7 @@
         <rpm-excludedocs>true</rpm-excludedocs>
         <rpm-check-signatures>false</rpm-check-signatures>
         <bootsplash-theme>bgrt</bootsplash-theme>
-        <bootloader-theme>kalpa</bootloader-theme>
+        <bootloader-theme>openSUSE</bootloader-theme>
     </preferences>
     <!-- the ISO Volume ID is set by the fix_bootconfig script -->
     <preferences arch="aarch64,x86_64" profiles="Offline,Online">
@@ -145,9 +145,8 @@
 
     <!-- branding and product definition: both profiles -->
     <packages type="image" profiles="Offline,Online">
-        <package name="agama-products-kalpa"/>
+        <package name="agama-products-tessa"/>
         <package name="chrony"/>
-        <package name="grub2-branding-kalpa" arch="aarch64,x86_64"/>
         <package name="MozillaFirefox-branding-openSUSE"/>
         <package name="openSUSE-build-key"/>
         <package name="staging-build-key"/>
@@ -155,7 +154,7 @@
 
     <!-- Offline-only: embedded package repository for air-gapped installation -->
     <packages type="image" profiles="Offline">
-        <package name="patterns-kalpa-base"/>
+        <package name="patterns-tessa-base"/>
         <package name="openSUSE-repos-MicroOS"/>
         <package name="createrepo_c"/>
     </packages>
@@ -168,6 +167,6 @@
         <package name="ca-certificates-mozilla"/>
     </packages>
     <packages type="bootstrap" profiles="Offline,Online">
-        <package name="Kalpa-release"/>
+        <package name="Tessa-release"/>
     </packages>
 </image>
