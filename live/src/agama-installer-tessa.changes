@@ -1,15 +1,5 @@
 -------------------------------------------------------------------
-<<<<<<< HEAD:live/src/agama-installer-tessa.changes
 Fri Jun 20 00:00:00 UTC 2026 - Shawn Dunn <sfalken@kalpadesktop.org>
-=======
-Thu Jun 18 08:16:25 UTC 2026 - Imobach Gonzalez Sosa <igonzalezsosa@suse.com>
-
-- Add support for alts as update-alternatives replacement
-  (gh#agama-project/agama#3645).
-
--------------------------------------------------------------------
-Mon Jun 15 15:45:32 UTC 2026 - Imobach Gonzalez Sosa <igonzalezsosa@suse.com>
->>>>>>> upstream/master:live/src/agama-installer.changes
 
 - Merge upstream agama v22 base (see agama-installer.changes for full details)
 

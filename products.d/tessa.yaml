@@ -9,6 +9,8 @@ software:
   installation_repositories:
     - url: file:///packages/
       archs: x86_64
+    - url: https://download.opensuse.org/repositories/home:/heppen:/tessa/openSUSE_Tumbleweed/
+      archs: x86_64
   # device labels for offline installation media
   installation_labels:
     - label: Install-Tessa-Project-x86_64
