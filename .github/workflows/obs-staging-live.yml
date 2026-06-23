@@ -48,8 +48,8 @@ jobs:
           OBS_USER:     ${{ vars.OBS_USER }}
           OBS_PASSWORD: ${{ secrets.OBS_PASSWORD }}
 
-      - name: Checkout ${{ env.obs_project }} agama-installer
-        run: osc co -o dist ${{ env.obs_project }} agama-installer
+      - name: Checkout ${{ env.obs_project }} agama-installer-tessa
+        run: osc co -o dist ${{ env.obs_project }} agama-installer-tessa
         working-directory: ./live
 
       - name: Build sources

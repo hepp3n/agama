@@ -38,10 +38,6 @@
     <repository type="rpm-md">
         <source path="obsrepositories:/"/>
     </repository>
-    <repository name="Tessa">
-      <path project="home:heppen:tessa" repository="standard"/>
-      <arch>x86_64</arch>
-    </repository>
 
     <!-- common set of packages for all profiles -->
     <packages type="image" patternType="onlyRequired">
@@ -149,7 +145,7 @@
 
     <!-- branding and product definition: both profiles -->
     <packages type="image" profiles="Offline,Online">
-        <package name="agama-products-tessa"/>
+        <!-- <package name="agama-products-tessa"/> -->
         <package name="chrony"/>
         <package name="MozillaFirefox-branding-openSUSE"/>
         <package name="openSUSE-build-key"/>
