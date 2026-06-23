@@ -808,9 +808,15 @@ mod tests {
     fn init_target() -> Result<(), Box<dyn Error>> {
         // run just single test to avoid threads as it cause zypp to be locked to one of those threads
         {
-            let root = get_fixture_root()?;
+            // Use a temp dir with an initialized rpmdb instead of "/" to avoid
+            // permission errors in restricted build environments (e.g., OBS).
             setup();
-            let result = Zypp::init_target(&root, progress_cb);
+            let tmp = std::env::temp_dir().join(format!("zypp_test_{}", std::process::id()));
+            std::fs::create_dir_all(&tmp)?;
+            let root = tmp.to_str().expect("tmpdir path is not UTF-8");
+            init_rpmdb(root)?;
+            let result = Zypp::init_target(root, progress_cb);
+            let _ = std::fs::remove_dir_all(&tmp);
             assert!(result.is_ok());
         }
         {

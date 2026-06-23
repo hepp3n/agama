@@ -20,13 +20,14 @@
  * find current contact information at www.suse.com.
  */
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Button, Content, Grid, GridItem } from "@patternfly/react-core";
 import { InstallerL10nOptions, Link, Page } from "~/components/core";
 import { L10N as PATHS } from "~/routes/paths";
 import { localConnection } from "~/utils";
 import { useProposal } from "~/hooks/model/proposal/l10n";
 import { useSystem } from "~/hooks/model/system/l10n";
+import { useSectionConfirmation } from "~/context/section-confirmation";
 import { _ } from "~/i18n";
 
 const InstallerL10nSettingsInfo = () => {
@@ -67,6 +68,11 @@ const InstallerL10nSettingsInfo = () => {
  * Page for configuring localization.
  */
 export default function L10nPage() {
+  const { confirmSection } = useSectionConfirmation();
+  useEffect(() => {
+    confirmSection("l10n");
+  }, [confirmSection]);
+
   // FIXME: retrieve selection from config when ready
   const l10nProposal = useProposal();
   const l10nSystem = useSystem();

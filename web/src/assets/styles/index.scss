@@ -14,3 +14,132 @@
 @use "base/reset.scss";
 @use "components/index.scss" as components;
 @use "utilities/index.scss" as utilities;
+
+// Kalpa brand overrides — override the Agama defaults set in tokens/semantic.scss.
+// Using direct PF token assignment so they win by source order.
+:root {
+  // Kalpa brand color (#25ac95) darkened for WCAG AA contrast on light backgrounds
+  --agm-t--color--pine: #1a7a6b;
+  --agm-t--color--pine--shade--100: #145e53;
+  // Official Kalpa brand teal — used for icons/accents where contrast allows
+  --agm-t--color--jungle: #25ac95;
+  --agm-t--color--jungle--hover: #cff0ec;
+  // Warm cream inspired by the Kalpa website secondary background
+  --agm-t--color--fog: #f0ece6;
+  --agm-t--color--midnight: #382929;
+  --agm-t--color--waterhole: #4a5dc7;
+  // Divider line color for layout elements
+  --agm-t--color--divider: #c8c0b8;
+
+  --agm-t--action--background--color--hover: var(--agm-t--color--jungle--hover);
+
+  --pf-t--global--background--color--secondary--default: var(--agm-t--color--fog);
+  --pf-t--global--background--color--action--plain--hover: var(
+    --agm-t--action--background--color--hover
+  );
+  --pf-t--global--background--color--action--plain--alt--hover: var(
+    --agm-t--action--background--color--hover
+  );
+  --pf-t--global--background--color--action--plain--alt--clicked: var(--agm-t--color--jungle);
+
+  --agm-t--install--button--background: var(--agm-t--color--pine);
+  --agm-t--install--button--background--hover: var(--agm-t--color--pine--shade--100);
+  --agm-t--install--button--color: var(--pf-t--color--white);
+
+  --pf-t--global--color--brand--default: var(--agm-t--color--pine);
+  --pf-t--global--color--brand--hover: var(--agm-t--color--pine--shade--100);
+  --pf-t--global--color--status--warning--200: #FED43F;
+  --pf-t--global--color--status--info--default: var(--agm-t--color--waterhole);
+  --pf-t--global--icon--color--status--info--default: var(--agm-t--color--waterhole);
+  --pf-t--global--background--color--disabled--default: #dcdbdc;
+  --pf-t--global--color--brand--clicked: var(--agm-t--color--pine);
+  --pf-t--global--text--color--link--default: var(--agm-t--color--pine);
+}
+
+// Dark theme — Kalpa brand teal (#25ac95) is vivid enough for dark backgrounds;
+// backgrounds and neutrals follow the Kalpa website's dark palette.
+.pf-v6-theme-dark {
+  --agm-t--color--pine: #25ac95;
+  --agm-t--color--pine--shade--100: #2fbfa8;
+  --agm-t--color--jungle: #25ac95;
+  --agm-t--color--jungle--hover: #153c38;
+  --agm-t--color--fog: #282828;
+  --agm-t--color--midnight: #382929;
+  --agm-t--color--waterhole: #7b9dff;
+  --agm-t--color--divider: #4a4a4a;
+
+  --agm-t--action--background--color--hover: var(--agm-t--color--jungle--hover);
+
+  --pf-t--global--background--color--secondary--default: var(--agm-t--color--fog);
+  --pf-t--global--background--color--action--plain--hover: var(
+    --agm-t--action--background--color--hover
+  );
+  --pf-t--global--background--color--action--plain--alt--hover: var(
+    --agm-t--action--background--color--hover
+  );
+  --pf-t--global--background--color--action--plain--alt--clicked: var(--agm-t--color--jungle);
+  --pf-t--global--background--color--disabled--default: #4a4a4a;
+
+  --pf-t--global--color--brand--default: var(--agm-t--color--pine);
+  --pf-t--global--color--brand--hover: var(--agm-t--color--pine--shade--100);
+  --pf-t--global--color--brand--clicked: var(--agm-t--color--pine);
+  --pf-t--global--text--color--link--default: var(--agm-t--color--pine);
+
+  --pf-t--global--color--status--warning--200: #f5c518;
+  --pf-t--global--color--status--info--default: var(--agm-t--color--waterhole);
+  --pf-t--global--icon--color--status--info--default: var(--agm-t--color--waterhole);
+}
+
+// Kalpa-specific component styles not covered by agama's modular partials.
+
+.agm-inline-toggle {
+  border-radius: 0;
+  inline-size: fit-content;
+  align-items: center;
+  padding: var(--pf-t--global--spacer--control--vertical--compact);
+
+  &:hover,
+  &.pf-m-expanded {
+    background: var(--agm-t--action--background--color--hover);
+    border-radius: var(--pf-t--global--border--radius--small);
+
+    &::before {
+      border-radius: var(--pf-t--global--border--radius--small);
+    }
+  }
+
+  &::before {
+    border: 0;
+    border-radius: 0;
+    border-bottom: 1px solid var(--pf-t--global--border--color--default);
+  }
+
+  &:focus-visible::before {
+    color: red;
+    border-bottom: 0;
+  }
+}
+
+.agm-issues-drawer-body {
+  padding: var(--pf-t--global--spacer--lg);
+
+  h4 a {
+    text-decoration: underline;
+    font-weight: var(--pf-t--global--font--weight--400);
+  }
+
+  ul li.pf-m-info,
+  ul li.pf-m-warning {
+    --pf-v6-c-notification-drawer__list-item--before--BackgroundColor: none;
+  }
+}
+
+.agm-strong-icon {
+  font-size: 1.6rem;
+  vertical-align: middle;
+}
+
+.agm-backdrop-gray-and-blur {
+  background-color: rgb(0 0 0 / 30%);
+  backdrop-filter: grayscale(100%) blur(4px);
+}

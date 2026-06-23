@@ -35,6 +35,7 @@ import {
 import Breadcrumbs from "~/components/core/Breadcrumbs";
 import Text from "~/components/core/Text";
 import ProductLogo from "~/components/product/ProductLogo";
+import ThemeToggle from "~/components/core/ThemeToggle";
 import { SkipTo } from "~/components/core";
 import { useProductInfo } from "~/hooks/model/config/product";
 import { ROOT } from "~/routes/paths";
@@ -179,6 +180,9 @@ export default function Header({
         <Toolbar isFullHeight>
           <ToolbarContent>
             <ToolbarGroup align={{ default: "alignEnd" }} columnGap={{ default: "columnGapXs" }}>
+              <ToolbarItem>
+                <ThemeToggle />
+              </ToolbarItem>
               {additionalContent && (
                 <ToolbarItem columnGap={{ default: "columnGapXs" }}>
                   {additionalContent}

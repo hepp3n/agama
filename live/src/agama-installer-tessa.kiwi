@@ -1,55 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- OBS-ExclusiveArch: aarch64 ppc64le x86_64 s390x -->
+<!-- OBS-ExclusiveArch: aarch64 x86_64 -->
 <!-- OBS-Profiles: @BUILD_FLAVOR@ -->
-<!-- OBS-Milestone: %current_milestone -->
 
-<image schemaversion="7.5" name="agama-installer">
+<image schemaversion="7.5" name="Tessa_Project">
     <description type="system">
-        <author>YaST Team</author>
-        <contact>yast2-maintainers@suse.de</contact>
-        <specification>Agama Live ISO</specification>
+        <author>Piotr Tomaszewski</author>
+        <contact>piotr@heppen.dev</contact>
+        <specification>Tessa Installer ISO</specification>
     </description>
     <profiles>
         <!-- use at most 16 characters for the profile name, it is used in the ISO Volume ID -->
         <!-- which is limited to max. 32 characters -->
-        <profile name="Leap_16.1" description="openSUSE Leap image" import="true" />
-        <profile name="openSUSE" description="openSUSE multiproduct image" import="true" />
-        <!-- TODO: add SPx in the future -->
-        <profile name="SUSE_SLE_16.1" description="SLE-based image" import="true" />
+        <profile name="Offline" description="Tessa Project offline installer (all packages embedded)" import="true"/>
+        <profile name="Online" description="Tessa Project online installer (packages from network)" import="true"/>
     </profiles>
     <preferences>
-        <version>22.0.0</version>
+        <version>%OS_VERSION_ID%</version>
         <packagemanager>zypper</packagemanager>
         <locale>en_US</locale>
         <keytable>us</keytable>
         <timezone>Europe/Berlin</timezone>
         <rpm-excludedocs>true</rpm-excludedocs>
         <rpm-check-signatures>false</rpm-check-signatures>
-    </preferences>
-    <!-- different boot menu theme for openSUSE and SLES, actually this is
-    ignored as the fix_bootconfig script automatically checks which theme is
-    present, but keep the option here otherwise a text mode boot menu is
-    displayed -->
-    <preferences profiles="openSUSE,Leap_16.1">
+        <bootsplash-theme>bgrt</bootsplash-theme>
         <bootloader-theme>openSUSE</bootloader-theme>
     </preferences>
-    <preferences profiles="SUSE_SLE_16.1">
-        <bootloader-theme>SLE</bootloader-theme>
-    </preferences>
     <!-- the ISO Volume ID is set by the fix_bootconfig script -->
-    <preferences arch="ppc64le" profiles="openSUSE,SUSE_SLE_16.1,Leap_16.1">
-        <type image="iso" flags="dmsquash"  firmware="ofw" mediacheck="true" publisher="SUSE LLC" editbootconfig="fix_bootconfig">
-            <bootloader name="grub2" console="serial" timeout="10"/>
-        </type>
-    </preferences>
-    <preferences arch="aarch64,x86_64" profiles="openSUSE,SUSE_SLE_16.1,Leap_16.1">
+    <preferences arch="aarch64,x86_64" profiles="Offline,Online">
         <type image="iso" flags="dmsquash" firmware="uefi" mediacheck="true" publisher="SUSE LLC" editbootconfig="fix_bootconfig">
             <bootloader name="grub2" timeout="10"/>
-        </type>
-    </preferences>
-    <preferences arch="s390x" profiles="openSUSE,SUSE_SLE_16.1,Leap_16.1">
-        <type image="iso" flags="dmsquash" mediacheck="true" publisher="SUSE LLC" editbootconfig="fix_bootconfig">
-            <bootloader name="custom" />
         </type>
     </preferences>
     <users>
@@ -59,8 +38,13 @@
     <repository type="rpm-md">
         <source path="obsrepositories:/"/>
     </repository>
-    <!-- common set of packages (SSH-based and remote installation, etc.) -->
-    <packages type="image">
+    <repository name="Tessa">
+      <path project="home:heppen:tessa" repository="standard"/>
+      <arch>x86_64</arch>
+    </repository>
+
+    <!-- common set of packages for all profiles -->
+    <packages type="image" patternType="onlyRequired">
         <package name="avahi"/>
         <package name="bind-utils"/>
         <package name="systemd"/>
@@ -75,12 +59,11 @@
         <package name="grub2-arm64-efi" arch="aarch64"/>
         <package name="grub2-x86_64-efi" arch="x86_64"/>
         <package name="grub2-i386-pc" arch="x86_64"/>
-        <package name="grub2-s390x-emu" arch="s390x" />
-        <package name="grub2-powerpc-ieee1275" arch="ppc64le"/>
         <package name="syslinux" arch="x86_64"/>
         <package name="openssh"/>
         <package name="iproute2"/>
         <package name="less"/>
+        <package name="libcups2" />
         <package name="bash-completion"/>
         <package name="dhcp-client"/>
         <package name="which"/>
@@ -97,11 +80,10 @@
         <package name="shim" arch="aarch64,x86_64"/>
         <package name="timezone"/>
         <package name="dracut-kiwi-live"/>
-        <package name="blog" arch="s390x" />
-        <package name="libblogger2" arch="s390x" />
         <package name="NetworkManager"/>
         <package name="NetworkManager-tui"/>
         <package name="agama"/>
+        <package name="agama-auto"/>
         <package name="agama-yast"/>
         <package name="agama-web-ui"/>
         <package name="agama-cli"/>
@@ -126,19 +108,32 @@
         <!-- IPMI support -->
         <package name="ipmitool" />
         <!-- jsc#PED-13114 -->
+        <package name="kexec-tools" />
         <package name="tpm2.0-tools" />
-        <!-- image cleanup tool -->
+        <package name="sudo-policy-wheel-auth-self"/>
         <package name="image-janitor"/>
-        <!-- plymouth bsc#1248507 -->
-        <package name="plymouth" arch="aarch64,x86_64,ppc64le" />
-        <package name="plymouth-dracut" arch="aarch64,x86_64,ppc64le" />
-        <!-- and s390 specific plymouth bsc#1248507 -->
-        <package name="blog-plymouth" arch="s390x" />
-
+    </packages>
+    <packages type="delete">
+        <package name="health-checker"/>
+        <package name="createrepo_c"/>
+        <package name="agama-integration-tests"/>
+        <!-- Server NIC/HBA/embedded firmware not needed in live installer;
+             packages remain in /packages/ for the installed system (Offline profile) -->
+        <package name="kernel-firmware-bnx2"/>
+        <package name="kernel-firmware-chelsio"/>
+        <package name="kernel-firmware-dpaa2"/>
+        <package name="kernel-firmware-liquidio"/>
+        <package name="kernel-firmware-mellanox"/>
+        <package name="kernel-firmware-nfp"/>
+        <package name="kernel-firmware-prestera"/>
+        <package name="kernel-firmware-qlogic"/>
+        <package name="kernel-firmware-serial"/>
+        <package name="kernel-firmware-ueagle"/>
+        <package name="OpenPrintingPPDs"/>
     </packages>
 
-    <!-- packages for local installation (desktop, browser, etc.) -->
-    <packages type="image" profiles="Leap_16.1,openSUSE,SUSE_SLE_16.1">
+    <!-- installer UI packages: Firefox/GNOME kiosk, needed by both profiles -->
+    <packages type="image" profiles="Offline,Online">
         <package name="bluez-firmware"/>
         <package name="agama-integration-tests"/>
         <package name="fontconfig"/>
@@ -152,36 +147,22 @@
         <package name="spice-vdagent"/>
     </packages>
 
-    <!-- common packages for openSUSE Tumbleweed and Leap distributions -->
-    <packages type="image" profiles="Leap_16.1,openSUSE">
-        <package name="agama-products-opensuse"/>
-        <package name="grub2-branding-openSUSE" arch="aarch64,x86_64"/>
+    <!-- branding and product definition: both profiles -->
+    <packages type="image" profiles="Offline,Online">
+        <package name="agama-products-tessa"/>
+        <package name="chrony"/>
         <package name="MozillaFirefox-branding-openSUSE"/>
         <package name="openSUSE-build-key"/>
-        <package name="patterns-openSUSE-base"/>
         <package name="staging-build-key"/>
-        <package name="plymouth-branding-openSUSE" arch="aarch64,x86_64,ppc64le" />
     </packages>
-    <!-- additional packages for the Leap distributions -->
-    <packages type="image" profiles="Leap_16.1">
-        <package name="openSUSE-repos-Leap"/>
-        <package name="kernel-default-extra"/>
-        <package name="kernel-default-optional"/>
+
+    <!-- Offline-only: embedded package repository for air-gapped installation -->
+    <packages type="image" profiles="Offline">
+        <package name="patterns-tessa-base"/>
+        <package name="openSUSE-repos-MicroOS"/>
+        <package name="createrepo_c"/>
     </packages>
-    <!-- additional packages for the openSUSE Tumbleweed distribution -->
-    <packages type="image" profiles="openSUSE">
-        <package name="openSUSE-repos-Tumbleweed"/>
-    </packages>
-    <!-- additional packages for the SLE distributions -->
-    <packages type="image" profiles="SUSE_SLE_16.1">
-        <package name="agama-products-sle"/>
-        <package name="grub2-branding-SLE" arch="aarch64,x86_64"/>
-        <package name="patterns-base-base"/>
-        <package name="suse-build-key"/>
-    </packages>
-    <packages type="image" profiles="SUSE_SLE_16.1">
-        <package name="MozillaFirefox-branding-SLE"/>
-    </packages>
+
     <packages type="bootstrap">
         <package name="udev"/>
         <package name="filesystem"/>
@@ -189,14 +170,7 @@
         <package name="ca-certificates"/>
         <package name="ca-certificates-mozilla"/>
     </packages>
-    <packages type="bootstrap" profiles="Leap_16.1">
-        <package name="Leap-release"/>
-    </packages>
-    <packages type="bootstrap" profiles="openSUSE">
-        <package name="openSUSE-release"/>
-        <package name="openSUSE-release-ftp"/>
-    </packages>
-    <packages type="bootstrap" profiles="SUSE_SLE_16.1">
-        <package name="SLES-release"/>
+    <packages type="bootstrap" profiles="Offline,Online">
+        <package name="Tessa-release"/>
     </packages>
 </image>

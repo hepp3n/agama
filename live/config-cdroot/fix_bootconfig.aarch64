@@ -23,7 +23,9 @@ arch=$(uname -m)
 profile=$(echo "$kiwi_profiles" | tr "_" " ")
 label="$profile ($arch)"
 
-if [ -d "$dst/boot/grub2/themes/SLE" ]; then
+if [ -d "$dst/boot/grub2/themes/kalpa" ]; then
+  theme="kalpa"
+elif [ -d "$dst/boot/grub2/themes/SLE" ]; then
   theme="SLE"
 else
   theme="openSUSE"

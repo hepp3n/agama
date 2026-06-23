@@ -82,26 +82,16 @@ translations:
     zh_TW: 一款採用捲動發行模式的不可變桌面產品，使用 Plasma 桌面環境，憑藉 Flatpak 進行應用程式交付，擁有唯讀基礎系統，並支援系統的自動原子更新
 software:
   installation_repositories:
-    - url: https://download.opensuse.org/tumbleweed/repo/oss/
-      archs: x86_64
-    - url: https://download.opensuse.org/tumbleweed/repo/non-oss/
-      archs: x86_64
-    - url: https://download.opensuse.org/update/tumbleweed/
+    - url: file:///packages/
       archs: x86_64
   # device labels for offline installation media
   installation_labels:
-    - label: Kalpa-desktop-DVD-x86_64
+    - label: Install-Kalpa-Desktop-x86_64
       archs: x86_64
   mandatory_patterns:
-    - microos_base
-    - microos_base_zypper
-    - microos_defaults
-    - microos_hardware
-    - microos_kde_desktop
-    - microos_selinux
+    - kalpa_base
   optional_patterns: []
-  user_patterns:
-    - container_runtime
+  user_patterns: []
   mandatory_packages:
     - NetworkManager
     - openSUSE-repos-MicroOS
@@ -109,11 +99,18 @@ software:
   optional_packages: [os-prober]
   base_product: Kalpa
 
+security:
+  lsm: selinux
+  available_lsms:
+    selinux:
+      patterns: null
+    none:
+      patterns: null
+
 storage:
   space_policy: delete
   volumes:
     - "/"
-    - "/var"
   volume_templates:
     - mount_path: "/"
       filesystem: btrfs
@@ -139,19 +136,5 @@ storage:
         filesystems:
           - btrfs
         auto_size:
-          base_min: 5 GiB
-          base_max: 25 GiB
-          max_fallback_for:
-            - "/var"
-    - mount_path: "/var"
-      filesystem: btrfs
-      mount_options:
-        - "x-initrd.mount"
-        - "nodatacow"
-      size:
-        auto: false
-        min: 5 GiB
-      outline:
-        required: false
-        filesystems:
-          - btrfs
+          base_min: 10 GiB
+          base_max: 40 GiB

@@ -60,6 +60,7 @@ import { STORAGE as PATHS } from "~/routes/paths";
 import { _, n_ } from "~/i18n";
 import { useLocation } from "react-router";
 import { useStorageUiState } from "~/context/storage-ui-state";
+import { useSectionConfirmation } from "~/context/section-confirmation";
 import { useSystem as useDASDSystem } from "~/hooks/model/system/dasd";
 import { useSystem as useZFCPSystem } from "~/hooks/model/system/zfcp";
 import spacingStyles from "@patternfly/react-styles/css/utilities/Spacing/spacing";
@@ -307,6 +308,7 @@ export default function ProposalPage(): React.ReactNode {
   // Hopefully this could be removed in the future. See rationale at UseStorageUiState
   const [resetNeeded, setResetNeeded] = useState(location.state?.resetStorageUiState);
   const { setUiState } = useStorageUiState();
+  const { confirmSection } = useSectionConfirmation();
   const zfcpIssues = useIssues("zfcp");
 
   React.useEffect(() => {
@@ -315,6 +317,10 @@ export default function ProposalPage(): React.ReactNode {
       setUiState(new Map());
     }
   }, [resetNeeded, setUiState]);
+
+  React.useEffect(() => {
+    confirmSection("storage");
+  }, [confirmSection]);
 
   if (resetNeeded) return;
 
