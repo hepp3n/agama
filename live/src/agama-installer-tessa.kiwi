@@ -20,7 +20,7 @@
         <locale>en_US</locale>
         <keytable>us</keytable>
         <timezone>Europe/Berlin</timezone>
-        <rpm-excludedocs>true</rpm-excludedocs>
+        <rpm-excludedocs>false</rpm-excludedocs>
         <rpm-check-signatures>false</rpm-check-signatures>
         <bootsplash-theme>bgrt</bootsplash-theme>
         <bootloader-theme>openSUSE</bootloader-theme>
@@ -38,9 +38,11 @@
     <repository type="rpm-md">
         <source path="obsrepositories:/"/>
     </repository>
-    <repository name="Tessa">
-      <path project="home:heppen:tessa" repository="standard"/>
-      <arch>x86_64</arch>
+    <repository type="rpm-md">
+        <source path="https://download.opensuse.org/repositories/X11:/COSMIC:/Factory/openSUSE_Factory/"/>
+    </repository>
+    <repository type="rpm-md">
+        <source path="https://download.opensuse.org/repositories/home:/heppen:/tessa/openSUSE_Tumbleweed/"/>
     </repository>
 
     <!-- common set of packages for all profiles -->
@@ -149,7 +151,7 @@
 
     <!-- branding and product definition: both profiles -->
     <packages type="image" profiles="Offline,Online">
-        <package name="agama-products-tessa"/>
+        <package name="agama-products"/>
         <package name="chrony"/>
         <package name="MozillaFirefox-branding-openSUSE"/>
         <package name="openSUSE-build-key"/>

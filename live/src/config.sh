@@ -187,22 +187,22 @@ if [[ "$kiwi_profiles" == *"Offline"* ]]; then
         | xargs -r -I{} cp -n {} /packages/
     createrepo_c /packages
     echo "RPM count in packages: $(find /packages -name '*.rpm' | wc -l)"
-    zypper --non-interactive --no-refresh remove --clean-deps patterns-kalpa-base || true
+    zypper --non-interactive --no-refresh remove --clean-deps patterns-tessa-base || true
     GNUPGHOME=$(mktemp -d)
     export GNUPGHOME
     gpg --batch --quiet --gen-key <<'GPGEOF'
 %no-protection
 Key-Type: RSA
 Key-Length: 2048
-Name-Real: Kalpa Installer Offline Repo
-Name-Email: kalpa-offline@localhost
+Name-Real: Tessa Installer Offline Repo
+Name-Email: tessa-offline@localhost
 Expire-Date: 0
 %commit
 GPGEOF
     _FPR=$(gpg --list-keys --with-colons | awk -F: '/^fpr:/{print $10; exit}')
     gpg --batch --yes --detach-sign --armor --default-key "$_FPR" /packages/repodata/repomd.xml
-    gpg --export --armor "$_FPR" > /usr/lib/rpm/gnupg/keys/gpg-pubkey-kalpa-offline.asc
-    rpm --import /usr/lib/rpm/gnupg/keys/gpg-pubkey-kalpa-offline.asc
+    gpg --export --armor "$_FPR" > /usr/lib/rpm/gnupg/keys/gpg-pubkey-tessa-offline.asc
+    rpm --import /usr/lib/rpm/gnupg/keys/gpg-pubkey-tessa-offline.asc
     rm -rf "$GNUPGHOME"
     unset GNUPGHOME _FPR
 fi
@@ -212,9 +212,9 @@ if [[ "$kiwi_profiles" == *"Online"* ]]; then
     cat > /etc/agama-online-defaults.json << 'DEFAULTS_EOF'
 {"software": {"onlyRequired": true}}
 DEFAULTS_EOF
-    cat > /etc/systemd/system/agama-kalpa-online-config.service << 'SERVICE_EOF'
+    cat > /etc/systemd/system/agama-tessa-online-config.service << 'SERVICE_EOF'
 [Unit]
-Description=Apply Kalpa online installer solver configuration
+Description=Apply Tessa online installer solver configuration
 After=agama-web-server.service
 Wants=agama-web-server.service
 
@@ -226,8 +226,8 @@ ExecStart=/bin/bash -c 'for i in $(seq 1 30); do agama config load /etc/agama-on
 [Install]
 WantedBy=multi-user.target
 SERVICE_EOF
-    systemctl enable agama-kalpa-online-config.service
-    cat > /usr/share/agama/products.d/kalpa.yaml.repos.tmp <<'YAML_EOF'
+    systemctl enable agama-tessa-online-config.service
+    cat > /usr/share/agama/products.d/tessa.yaml.repos.tmp <<'YAML_EOF'
   installation_repositories:
     - url: https://cdn.opensuse.org/tumbleweed/repo/oss/
       archs: x86_64
@@ -236,16 +236,16 @@ SERVICE_EOF
 YAML_EOF
     python3 - <<'PYEOF'
 import re, pathlib
-p = pathlib.Path('/usr/share/agama/products.d/kalpa.yaml')
+p = pathlib.Path('/usr/share/agama/products.d/tessa.yaml')
 text = p.read_text()
-replacement = pathlib.Path('/usr/share/agama/products.d/kalpa.yaml.repos.tmp').read_text()
+replacement = pathlib.Path('/usr/share/agama/products.d/tessa.yaml.repos.tmp').read_text()
 text = re.sub(
     r'  installation_repositories:.*?(?=  installation_labels:|  mandatory_patterns:)',
     replacement,
     text, flags=re.DOTALL)
 p.write_text(text)
 PYEOF
-    rm -f /usr/share/agama/products.d/kalpa.yaml.repos.tmp
+    rm -f /usr/share/agama/products.d/tessa.yaml.repos.tmp
 fi
 
 ################################################################################

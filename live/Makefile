@@ -13,8 +13,8 @@ FLAVOR = openSUSE
 
 # the default OBS project,
 # to use a different project run "make build OBS_PROJECT=<project>"
-OBS_PROJECT = "systemsmanagement:Agama:Devel"
-OBS_PACKAGE = "agama-installer"
+OBS_PROJECT = "home:heppen:tessa"
+OBS_PACKAGE = "agama-installer-tessa"
 # to use internal OBS add "OBS_API=https://api.suse.de"
 OBS_API = "https://api.opensuse.org"
 # default OBS build target
